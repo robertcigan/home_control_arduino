@@ -6,8 +6,6 @@
 
 HomeControl home_control;
 
-void(* resetFunc) (void) = 0; //declare reset function @ address 0
-
 void setup_serial() {
   Serial.begin(9600);
   Serial.println(F(""));

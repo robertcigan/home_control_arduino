@@ -5,9 +5,11 @@ Device::Device() {
 }
 
 void Device::setup() {
+  value_initialized = false;
   poll = 0;
   last_run = millis();
   last_value_change = millis();
+  report = false;
 }
 
 bool Device::is_output() {

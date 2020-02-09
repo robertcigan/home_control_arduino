@@ -12,9 +12,8 @@
 #include "DeviceButton.h"
 #include "DeviceRelay.h"
 #include "DevicePlayer.h"
+#include "DeviceDistance.h"
 
-//#define DEVICE_UDP_PORT 5001
-//#define AUTOMATOR_UDP_PORT 5001
 #define MAX_DEVICES 40
 #define INPUT_BUFFER_SIZE 500
 #define VERSION 1

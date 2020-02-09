@@ -19,7 +19,8 @@ void DeviceButton::loop() {
         report = true;
       }
       value = new_value;      
-    } 
+    }
+    value_initialized = true;
     last_run = millis();
   }
 }

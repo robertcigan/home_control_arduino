@@ -8,6 +8,7 @@ class Device {
   public:
     Device();
     bool report;
+    bool value_initialized;
     uint32_t device_id;
     virtual bool is_output();
     void setup();

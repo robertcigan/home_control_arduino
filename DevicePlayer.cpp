@@ -17,15 +17,17 @@ void DevicePlayer::loop() {
 void DevicePlayer::play(uint8_t directory, uint8_t file) {
   player->playWithFileName(directory, file);
   last_value_change = millis();
-  Serial.print(F("Player:: ")); Serial.print(F(" play sound ")); Serial.print(directory); Serial.print("/"); Serial.print(file);
+  Serial.print(F("Player: ")); Serial.print(F(" play ")); Serial.print(directory); Serial.print("/"); Serial.println(file);
 }
 
 void DevicePlayer::volume(uint8_t vol) {
+  Serial.print(F("Player: ")); Serial.print(F(" volume ")); Serial.print(vol); Serial.print("/"); Serial.println(23);
   player->setVolume(vol);
 }
   
 void DevicePlayer::uninitialize() { 
-  digitalWrite(pin, HIGH);
+  delete player;
+  player = NULL;
 }
 
 void DevicePlayer::action(JsonObject doc) {
@@ -43,7 +45,7 @@ DynamicJsonDocument DevicePlayer::sendData() {
 }
 
 bool DevicePlayer::is_output() {
-  return false;
+  return true;
 }
 
 void DevicePlayer::print() {

@@ -7,7 +7,7 @@ DeviceRelay::DeviceRelay(uint32_t device_id, uint8_t pin) {
   this->value = HIGH;
   // initialize output
   pinMode(pin, OUTPUT);
-  this->set_relay(HIGH);
+  digitalWrite(pin, HIGH);
   print();
 }
 
@@ -15,10 +15,10 @@ void DeviceRelay::loop() {
 }
 
 void DeviceRelay::set_relay(bool new_value) {
-  digitalWrite(pin, value ? LOW : HIGH);
   if (new_value != value) {
     last_value_change = millis();
     value = new_value;
+    digitalWrite(pin, value ? LOW : HIGH);
     Serial.print(F("Pin: ")); Serial.print(pin); Serial.print(F(" relay set to ")); Serial.println(value);
   } 
 }
@@ -37,7 +37,7 @@ DynamicJsonDocument DeviceRelay::sendData() {
 }
 
 bool DeviceRelay::is_output() {
-  return false;
+  return true;
 }
 
 void DeviceRelay::print() {

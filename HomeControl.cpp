@@ -20,7 +20,7 @@ HomeControl::HomeControl() {
   this->server_development[0] = 192;
   this->server_development[1] = 168;
   this->server_development[2] = 0;
-  this->server_development[3] = 100;
+  this->server_development[3] = 104;
   this->ip_offset = 0;
   this->port = 7777;
   
@@ -184,6 +184,12 @@ bool HomeControl::parseCommand() {
     } else if (doc["add"]["type"] == F("player")) {
       DevicePlayer *device = new DevicePlayer(doc["add"]["id"].as<uint32_t>());
       addDevice(*device);
+    } else if (doc["add"]["type"] == F("distance")) {
+      DeviceDistance *device = new DeviceDistance(doc["add"]["id"], doc["add"]["write_pin"], doc["add"]["read_pin"]);
+      addDevice(*device);
+    } else if (doc["add"]["type"] == F("player")) {
+      DevicePlayer *device = new DevicePlayer(doc["add"]["id"].as<uint32_t>());
+      addDevice(*device);
     }
   } else if (doc["reset_devices"]) {
     deleteAllDevices();
@@ -291,9 +297,10 @@ void HomeControl::loop() {
     }
     
     for(int i = 0; i < device_count; i++) {
-      if (devices[i]->report) {
-//        serializeJson(devices[i]->sendData(), Serial);
-//        Serial.println();
+      if (devices[i]->report && devices[i]->value_initialized) {
+        Serial.print("Sending: ");
+        serializeJson(devices[i]->sendData(), Serial);
+        Serial.println();
         serializeJson(devices[i]->sendData(), client);
         client.write("\n");
       }
