@@ -4,6 +4,9 @@ Device::Device() {
   this->setup();
 }
 
+Device::~Device() {
+}
+
 void Device::setup() {
   value_initialized = false;
   poll = 0;
@@ -38,13 +41,12 @@ void Device::convertToAnalogPin() {
   }
 }
 
-static float Device::ADConversion(int input) {
+float Device::ADConversion(int input) {
   return input * 5.0 / 1024;
 }
-
-static int Device::PercentualPWMConversion(int input) { /* 0-100 to 0-255 */
+int Device::PercentualPWMConversion(int input) { /* 0-100 to 0-255 */
   return input * 255 / 100;
 }
-static int Device::PercentualServoConversion(int input) { /* 0-100 to 0-180 */
+int Device::PercentualServoConversion(int input) { /* 0-100 to 0-180 */
   return input * 180 / 100;
 }

@@ -1,7 +1,7 @@
 #ifndef DEVICE_PLAYER_H
 #define DEVICE_PLAYER_H
 #include <Arduino.h>
-#include "src/RedMP3/RedMP3.h"
+#include <RedMP3.h>
 #include "Device.h"
 
 class DevicePlayer : public Device {

@@ -4,28 +4,20 @@ HomeControl::HomeControl() {
   this->device_count = 0;
   this->last_request = millis();
   this->autoreset = 0;
-  this->production = 0;
   this->mac[0] = 0x00;
   this->mac[1] = 0xAA;
   this->mac[2] = 0xBB;
   this->mac[3] = 0xCC;
   this->mac[4] = 0xDE;
   this->mac[5] = 0x00;
-  this->ip = IPAddress(192, 168, 0, 0);
-  this->server_production[0] = 192;
-  this->server_production[1] = 168;
-  this->server_production[2] = 0;
-  this->server_production[3] = 2;
-
-  this->server_development[0] = 192;
-  this->server_development[1] = 168;
-  this->server_development[2] = 0;
-  this->server_development[3] = 104;
-  this->ip_offset = 0;
+  this->client_ip = IPAddress(192, 168, 0, 0);
+  this->server_ip = IPAddress(192, 168, 0, 0 );
   this->port = 7777;
   
   this->inIndex = 0;
   this->inStatus = 0; // 0 - wait, 1 - command
+
+  this->serialInIndex = 0;
 }
 
 bool HomeControl::setup() {
@@ -48,42 +40,43 @@ bool HomeControl::setup() {
 }
 
 bool HomeControl::loadConfiguration() {
-  // IP configuration
-  pinMode(A0, INPUT_PULLUP);
-  pinMode(A1, INPUT_PULLUP);
-  pinMode(A2, INPUT_PULLUP);
-  pinMode(A3, INPUT_PULLUP);
-  pinMode(A4, INPUT_PULLUP); // 1 dev mode (no cable) | 0 production mode (cable ground)
-
-  ip_offset = ip_offset + (1 * digitalRead(A0));
-  ip_offset = ip_offset + (2 * digitalRead(A1));
-  ip_offset = ip_offset + (4 * digitalRead(A2));
-  ip_offset = ip_offset + (8 * digitalRead(A3));
-  production = !digitalRead(A4);
-
-  // MAC address
-  mac[4] = mac[4] + production;
-  mac[5] = mac[5] + ip_offset;
-  
-  // IP address
-  if (production) {
-    ip[3] = 60 + ip_offset;
+  if (EEPROM.read(EEPROM_CONFIG_SET_OFFSET) == EEPROM_INITIALIZED_VALUE && 
+    EEPROM.read(EEPROM_CONFIG_SET_OFFSET + 1) == EEPROM_INITIALIZED_VALUE) {
+      
+    for(int i = 0; i <= 3; i++) {
+    client_ip[i] = EEPROM.read(i + EEPROM_CLIENT_IP_OFFSET);
+    }
+    for(int i = 0; i <= 3; i++) {
+      server_ip[i] = EEPROM.read(i + EEPROM_SERVER_IP_OFFSET);
+    }
+    for(int i = 0; i <= 5; i++) {
+      mac[i] = EEPROM.read(i + EEPROM_MAC_OFFSET);
+    }
   } else {
-    ip[3] = 200 + ip_offset;
-  }
-
-  // Server
-  if (production) {
-    for(int i = 0; i < 4; i++) { server[i] = server_production[i]; }
-  } else {
-    for(int i = 0; i < 4; i++) { server[i] = server_development[i]; }
+    Serial.println("EEPROM not initialized, storing default values now.");
+    EEPROM.update(EEPROM_CONFIG_SET_OFFSET, EEPROM_INITIALIZED_VALUE);
+    EEPROM.update(EEPROM_CONFIG_SET_OFFSET + 1, EEPROM_INITIALIZED_VALUE);
+    saveConfiguration();
   }
   printConfiguration();
   return true;
 }
 
+bool HomeControl::saveConfiguration() {
+  for(int i = 0; i <= 3; i++) {
+    EEPROM.update(i + EEPROM_CLIENT_IP_OFFSET, client_ip[i]);
+  }
+  for(int i = 0; i <= 3; i++) {
+    EEPROM.update(i + EEPROM_SERVER_IP_OFFSET, server_ip[i]);
+  }
+  for(int i = 0; i <= 5; i++) {
+    EEPROM.update(i + EEPROM_MAC_OFFSET, mac[i]);
+  }
+  return true;
+}
+
 bool HomeControl::setupEthernet() {
-  Ethernet.begin(mac, ip);
+  Ethernet.begin(mac, client_ip);
   if (Ethernet.hardwareStatus() == EthernetNoHardware) {
     Serial.println(F("Ethernet shield was not found."));
     return false;
@@ -107,7 +100,7 @@ bool HomeControl::setupEthernet() {
 void HomeControl::connect() {
   client.stop();
   Serial.print(F("Connecting to server: "));
-  if (client.connect(server, port)) {
+  if (client.connect(server_ip, port)) {
     Serial.println(F("OK"));
   } else {
     Serial.println(F("failed"));
@@ -135,6 +128,7 @@ void HomeControl::deleteAllDevices() {
 }
 
 void HomeControl::readInput() {
+  char inChar=-1;
   while(client.available() > 0) {
     if(inIndex < INPUT_BUFFER_SIZE) {
       inChar = client.read(); // Read a charact
@@ -144,7 +138,7 @@ void HomeControl::readInput() {
         parseCommand();
         resetInputData();
         availableMemory();
-        return true;
+        return;
       } else {
         inData[inIndex] = inChar; // Store it
         inIndex++; // Increment where to write next
@@ -162,9 +156,10 @@ void HomeControl::resetInputData() {
   //  }
   inIndex = 0;
   inStatus = 0;
+  return;
 }
 
-bool HomeControl::parseCommand() {
+void HomeControl::parseCommand() {
   last_request = millis();
   DynamicJsonDocument doc(INPUT_BUFFER_SIZE);
   DeserializationError err = deserializeJson(doc, inData);
@@ -210,7 +205,7 @@ bool HomeControl::parseCommand() {
       }
     }
   } else {
-    Serial.println(F("Uknown command"));
+    Serial.println(F("Unknown command"));
   }
 }
 
@@ -282,6 +277,7 @@ void HomeControl::pong() {
 //}
 
 void HomeControl::loop() {
+  readSerialInput();
   if (!client.connected()) {
     Serial.println(F("no connection"));
     delay(5000);
@@ -323,11 +319,13 @@ void HomeControl::turnOnTestModeLED(int timeout) {
   timer.setTimeout(timeout, turnOffTestModeLED);
 }
 
-static void HomeControl::turnOffTestModeLED() {
+void HomeControl::turnOffTestModeLED() {
   digitalWrite(LED_BUILTIN, LOW);
 }
 
 void HomeControl::printConfiguration() {
+  Serial.println(F("HomeControl "));
+  Serial.print(F("Version: ")); Serial.println(VERSION);
   Serial.println(F("Network settings"));
   Serial.println(F("----------------"));
   Serial.print(F("MAC:"));
@@ -339,32 +337,107 @@ void HomeControl::printConfiguration() {
       Serial.println(mac[i], HEX);
     }
   }
-  Serial.print(F("IP:         "));
-  Serial.print(ip[0]); Serial.print(F(".")); Serial.print(ip[1]); Serial.print(F(".")); Serial.print(ip[2]); Serial.print(F(".")); Serial.println(ip[3]);
+  Serial.print(F("Client IP:  "));
+  Serial.print(client_ip[0]); Serial.print(F(".")); Serial.print(client_ip[1]); Serial.print(F(".")); Serial.print(client_ip[2]); Serial.print(F(".")); Serial.println(client_ip[3]);
   Serial.print(F("Server IP:  "));
-  Serial.print(server[0]); Serial.print("."); Serial.print(server[1]); Serial.print(F(".")); Serial.print(server[2]); Serial.print(F(".")); Serial.println(server[3]);
+  Serial.print(server_ip[0]); Serial.print("."); Serial.print(server_ip[1]); Serial.print(F(".")); Serial.print(server_ip[2]); Serial.print(F(".")); Serial.println(server_ip[3]);
   Serial.print(F("Port:       ")); Serial.println(port);
+  Serial.println(F("Available commands:"));
+  Serial.println(F("  server_ip=123.123.123.123"));
+  Serial.println(F("  client_ip=123.123.123.123"));
+  Serial.println(F("  mac=FF:FF:FF:FF:FF:FF"));
+  Serial.println(F("  save"));
 }
 
 bool HomeControl::connectionExpired() {
   return (autoreset > 0 && ((last_request + autoreset * 1000L) < millis() || last_request > millis()));
 }
 
-static void HomeControl::availableMemory() {
- int size = 8192; // SRAM memory of the arduino
+void HomeControl::availableMemory() {
+ int size = 8192; // SRAM memory of the arduino mega
  byte *buf;
  while ((buf = (byte *) malloc(--size)) == NULL);
      free(buf);
- Serial.print(F("Memory: ")); Serial.println(size);
+ Serial.print(F("Free memory: ")); Serial.println(size);
 }
 
-//static void HomeControl::parseBytes(const char* str, char sep, byte* bytes, int maxBytes, int base) {
-//  for (int i = 0; i < maxBytes; i++) {
-//    bytes[i] = strtoul(str, NULL, base);  // Convert byte
-//    str = strchr(str, sep);               // Find next separator
-//    if (str == NULL || *str == '\0') {
-//      break;                            // No more separators, exit
-//    }
-//    str++;                                // Point to next character after separator
-//  }
-//}
+void HomeControl::readSerialInput() {
+  char inChar=-1;
+  while(Serial.available() > 0) {
+    if(serialInIndex < SERIAL_INPUT_BUFFER_SIZE) {
+      inChar = Serial.read(); // Read a character
+      if (inChar == '\n') {
+        serialInData[serialInIndex] = '\0';
+        Serial.print(F("Serial received:"));Serial.println(serialInData);
+        parseSerialCommand();
+        resetSerialInputData();
+        return;
+      } else {
+        serialInData[serialInIndex] = inChar; // Store it
+        serialInIndex++; // Increment where to write next
+      }
+    } else {
+      Serial.println(F("Input data too large!"));
+      resetSerialInputData();
+    }
+  }
+}
+
+void HomeControl::resetSerialInputData() {
+  serialInIndex = 0;
+  return;
+}
+
+void HomeControl::parseSerialCommand() {
+  // *************** SET CLIENT IP **************//
+  if (strstr(serialInData, "client_ip=")) {
+    Serial.println(F("Setting Client IP\n"));
+    char *token;
+    token = strtok(&serialInData[10], ".");
+    client_ip[0] = atoi(token);
+    token = strtok(NULL, ".");
+    client_ip[1] = atoi(token);
+    token = strtok(NULL, ".");
+    client_ip[2] = atoi(token);    
+    token = strtok(NULL, ".");
+    client_ip[3] = atoi(token);
+    printConfiguration();
+  // *************** SET SERVER IP **************//
+  } else if (strstr(serialInData, "server_ip=")) {
+    Serial.println(F("Setting Server IP\n"));
+    char *token;
+    token = strtok(&serialInData[10], ".");
+    server_ip[0] = atoi(token);
+    token = strtok(NULL, ".");
+    server_ip[1] = atoi(token);
+    token = strtok(NULL, ".");
+    server_ip[2] = atoi(token);    
+    token = strtok(NULL, ".");
+    server_ip[3] = atoi(token);
+    printConfiguration();
+  // *************** SET MAC ADDRESS **************//
+  } else if (strstr(serialInData, "mac=")) {
+    Serial.println(F("Setting Server IP\n"));
+    char *token;
+    token = strtok(&serialInData[4], ":");
+    mac[0] = strtoul(token, NULL, 16);
+    token = strtok(NULL, ":");
+    mac[1] = strtoul(token, NULL, 16);
+    token = strtok(NULL, ":");
+    mac[2] = strtoul(token, NULL, 16);
+    token = strtok(NULL, ":");
+    mac[3] = strtoul(token, NULL, 16);
+    token = strtok(NULL, ":");
+    mac[4] = strtoul(token, NULL, 16);
+    token = strtok(NULL, ":");
+    mac[5] = strtoul(token, NULL, 16);
+    printConfiguration();
+  // *************** STORE CONFIGURATION **************//
+  } else if (strstr(serialInData, "save")) {
+    Serial.println(F("Saving configuration to EEPROM\n"));
+    saveConfiguration();
+    printConfiguration();     
+  } else {
+    Serial.println(F("Unknown command"));
+  }
+}

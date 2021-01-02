@@ -7,6 +7,7 @@
 class Device {
   public:
     Device();
+    ~Device();
     bool report;
     bool value_initialized;
     uint32_t device_id;
