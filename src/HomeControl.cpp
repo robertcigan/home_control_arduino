@@ -368,7 +368,7 @@ void HomeControl::readSerialInput() {
       inChar = Serial.read(); // Read a character
       if (inChar == '\n') {
         serialInData[serialInIndex] = '\0';
-        Serial.print(F("Serial received:"));Serial.println(serialInData);
+        Serial.print(F("Serial command:"));Serial.println(serialInData);
         parseSerialCommand();
         resetSerialInputData();
         return;
