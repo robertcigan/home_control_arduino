@@ -16,6 +16,7 @@
 #include "DeviceRelay.h"
 #include "DevicePlayer.h"
 #include "DeviceDistance.h"
+#include "DeviceValue.h"
 
 #define MAX_DEVICES                     40
 #define INPUT_BUFFER_SIZE               500
