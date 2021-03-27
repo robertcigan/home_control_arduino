@@ -33,7 +33,7 @@ bool HomeControl::setup() {
   if (setupEthernet()) {
     Serial.println(F("Ethernet setup successfull!"));
   } else {
-    //return false; 
+    return false; 
   }
   availableMemory();
   return true;
@@ -44,7 +44,7 @@ bool HomeControl::loadConfiguration() {
     EEPROM.read(EEPROM_CONFIG_SET_OFFSET + 1) == EEPROM_INITIALIZED_VALUE) {
       
     for(int i = 0; i <= 3; i++) {
-    client_ip[i] = EEPROM.read(i + EEPROM_CLIENT_IP_OFFSET);
+      client_ip[i] = EEPROM.read(i + EEPROM_CLIENT_IP_OFFSET);
     }
     for(int i = 0; i <= 3; i++) {
       server_ip[i] = EEPROM.read(i + EEPROM_SERVER_IP_OFFSET);
@@ -151,9 +151,6 @@ void HomeControl::readInput() {
 }
 
 void HomeControl::resetInputData() {
-  //  for(int i=0;i<INPUT_BUFFER_SIZE;i++){
-  //    inData[i]=0;
-  //  }
   inIndex = 0;
   inStatus = 0;
   return;
@@ -357,11 +354,11 @@ bool HomeControl::connectionExpired() {
 }
 
 void HomeControl::availableMemory() {
- int size = 8192; // SRAM memory of the arduino mega
- byte *buf;
- while ((buf = (byte *) malloc(--size)) == NULL);
-     free(buf);
- Serial.print(F("Free memory: ")); Serial.println(size);
+  int size = 8192; // SRAM memory of the arduino mega
+  byte *buf;
+  while ((buf = (byte *) malloc(--size)) == NULL) {};
+  free(buf);
+  Serial.print(F("Free memory: ")); Serial.println(size);
 }
 
 void HomeControl::readSerialInput() {
