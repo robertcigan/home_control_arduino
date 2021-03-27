@@ -1,7 +1,6 @@
 #ifndef _Red_MP3_H__
 #define _Red_MP3_H__
 
-#include <SoftwareSerial.h>
 #include <Arduino.h>
 
 /************Command byte**************************/

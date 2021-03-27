@@ -1,17 +1,24 @@
 #ifndef HOME_CONTROL_H
 #define HOME_CONTROL_H
 #include <Arduino.h>
-
 #include <ArduinoJson.h>
-#include <Ethernet.h>
-#include <SD.h>
+#if defined(__AVR__)
+  #include <Ethernet.h>
+#elif defined(ESP8266)
+  #include <ESP8266WiFi.h>
+  #include <ESP8266WiFiMulti.h>
+#elif defined(ESP32)
+  #include <WiFi.h>
+  #include <WiFiMulti.h>
+#endif
+//#include <SD.h>
 #include <SimpleTimer.h>
 #include <EEPROM.h>
 #include <string.h>
 #include <stdlib.h>
 
 #include "Device.h"
-#include "DeviceSwitch.h"
+#include "DeviceSwitch.h" 
 #include "DeviceButton.h"
 #include "DeviceRelay.h"
 #include "DevicePlayer.h"
@@ -53,16 +60,22 @@ class HomeControl {
     uint16_t inIndex;
     uint8_t inStatus; // 0 - wait, 1 - command
     SimpleTimer timer;
-    EthernetClient client;
+    #if defined(__AVR__)
+      EthernetClient client;
+    #elif defined(ESP8266)
+      ESP8266WiFiMulti wifiMulti;
+      WiFiClient client;
+    #elif defined(ESP32)
+      WiFiMulti wifiMulti;
+      WiFiClient client;
+    #endif
+    bool setupNetwork();    
     Device *devices[MAX_DEVICES];
-
-    bool setupEthernet();
 
     void connect();
     bool loadConfiguration();
     bool saveConfiguration();
     void printConfiguration();
-    static void printDirectory(File dir, int num_tabs);
     void readInput();
     void resetInputData();
     void parseCommand();

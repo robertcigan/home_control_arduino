@@ -1,7 +1,14 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 #include <Arduino.h>
-#include <Ethernet.h>
+#if defined(__AVR__)
+  #include <Ethernet.h>
+#elif defined(ESP8266)
+  #include <ESP8266WiFi.h>
+  #include <ESP8266WiFiMulti.h>
+#elif defined(ESP32)
+  #include <WiFi.h>
+#endif
 #include <ArduinoJson.h>
 
 class Device {

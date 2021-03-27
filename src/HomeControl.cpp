@@ -21,20 +21,24 @@ HomeControl::HomeControl() {
 }
 
 bool HomeControl::setup() {
-  pinMode(LED_BUILTIN, OUTPUT); //TEST LED
-  pinMode(10, OUTPUT);   // set the Ethernet SS pin as an output (necessary!)
-  digitalWrite(10, HIGH);
+  #if defined(__AVR__)
+    pinMode(LED_BUILTIN, OUTPUT); //TEST LED
+    pinMode(10, OUTPUT);   // set the Ethernet SS pin as an output (necessary!)
+    digitalWrite(10, HIGH);
+  #elif defined(__XTENSA__)
+    EEPROM.begin(512);
+  #endif
   
   if (loadConfiguration()) {
     Serial.println(F("Configuration successfull!"));
   } else {
     return false; 
   }
-  if (setupEthernet()) {
-    Serial.println(F("Ethernet setup successfull!"));
-  } else {
-    return false; 
-  }
+    if (setupNetwork()) {
+      Serial.println(F("Ethernet setup successfull!"));
+    } else {
+      //return false; 
+    }
   availableMemory();
   return true;
 }
@@ -44,7 +48,7 @@ bool HomeControl::loadConfiguration() {
     EEPROM.read(EEPROM_CONFIG_SET_OFFSET + 1) == EEPROM_INITIALIZED_VALUE) {
       
     for(int i = 0; i <= 3; i++) {
-      client_ip[i] = EEPROM.read(i + EEPROM_CLIENT_IP_OFFSET);
+    client_ip[i] = EEPROM.read(i + EEPROM_CLIENT_IP_OFFSET);
     }
     for(int i = 0; i <= 3; i++) {
       server_ip[i] = EEPROM.read(i + EEPROM_SERVER_IP_OFFSET);
@@ -54,8 +58,13 @@ bool HomeControl::loadConfiguration() {
     }
   } else {
     Serial.println("EEPROM not initialized, storing default values now.");
-    EEPROM.update(EEPROM_CONFIG_SET_OFFSET, EEPROM_INITIALIZED_VALUE);
-    EEPROM.update(EEPROM_CONFIG_SET_OFFSET + 1, EEPROM_INITIALIZED_VALUE);
+    #if defined(__AVR__)
+      EEPROM.update(EEPROM_CONFIG_SET_OFFSET, EEPROM_INITIALIZED_VALUE);
+      EEPROM.update(EEPROM_CONFIG_SET_OFFSET + 1, EEPROM_INITIALIZED_VALUE);
+    #elif defined(__XTENSA__)
+      EEPROM.write(EEPROM_CONFIG_SET_OFFSET, EEPROM_INITIALIZED_VALUE);
+      EEPROM.write(EEPROM_CONFIG_SET_OFFSET + 1, EEPROM_INITIALIZED_VALUE);
+    #endif
     saveConfiguration();
   }
   printConfiguration();
@@ -63,48 +72,92 @@ bool HomeControl::loadConfiguration() {
 }
 
 bool HomeControl::saveConfiguration() {
-  for(int i = 0; i <= 3; i++) {
-    EEPROM.update(i + EEPROM_CLIENT_IP_OFFSET, client_ip[i]);
-  }
-  for(int i = 0; i <= 3; i++) {
-    EEPROM.update(i + EEPROM_SERVER_IP_OFFSET, server_ip[i]);
-  }
-  for(int i = 0; i <= 5; i++) {
-    EEPROM.update(i + EEPROM_MAC_OFFSET, mac[i]);
-  }
+  #if defined(__AVR__)
+    for(int i = 0; i <= 3; i++) {
+      EEPROM.update(i + EEPROM_CLIENT_IP_OFFSET, client_ip[i]);
+    }
+    for(int i = 0; i <= 3; i++) {
+      EEPROM.update(i + EEPROM_SERVER_IP_OFFSET, server_ip[i]);
+    }
+    for(int i = 0; i <= 5; i++) {
+      EEPROM.update(i + EEPROM_MAC_OFFSET, mac[i]);
+    }
+  #elif defined(__XTENSA__)
+    for(int i = 0; i <= 3; i++) {
+      EEPROM.write(i + EEPROM_CLIENT_IP_OFFSET, client_ip[i]);
+    }
+    for(int i = 0; i <= 3; i++) {
+      EEPROM.write(i + EEPROM_SERVER_IP_OFFSET, server_ip[i]);
+    }
+    for(int i = 0; i <= 5; i++) {
+      EEPROM.write(i + EEPROM_MAC_OFFSET, mac[i]);
+    }
+    if (EEPROM.commit()) {
+      Serial.println(F("EEPROM successfully committed"));
+    } else {
+      Serial.println(F("ERROR! EEPROM commit failed"));
+    }
+  #endif
   return true;
 }
 
-bool HomeControl::setupEthernet() {
-  Ethernet.begin(mac, client_ip);
-  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-    Serial.println(F("Ethernet shield was not found."));
-    return false;
-  } else if (Ethernet.hardwareStatus() == EthernetW5100) {
-    Serial.println(F("W5100 Ethernet controller detected."));
-  } else if (Ethernet.hardwareStatus() == EthernetW5200) {
-    Serial.println(F("W5200 Ethernet controller detected."));
-  } else if (Ethernet.hardwareStatus() == EthernetW5500) {
-    Serial.println(F("W5500 Ethernet controller detected."));
-  }
-  if (Ethernet.linkStatus() == Unknown) {
-    Serial.println(F("Link status unknown. Link status detection is only available with W5200 and W5500."));
-  } else if (Ethernet.linkStatus() == LinkON) {
-    Serial.println(F("Link status: On"));
-  } else if (Ethernet.linkStatus() == LinkOFF) {
-    Serial.println(F("Link status: Off"));
-  }
+bool HomeControl::setupNetwork() {
+  #if defined(__AVR__)
+    Ethernet.begin(mac, client_ip);
+    if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+      Serial.println(F("Ethernet shield was not found."));
+      return false;
+    } else if (Ethernet.hardwareStatus() == EthernetW5100) {
+      Serial.println(F("W5100 Ethernet controller detected."));
+    } else if (Ethernet.hardwareStatus() == EthernetW5200) {
+      Serial.println(F("W5200 Ethernet controller detected."));
+    } else if (Ethernet.hardwareStatus() == EthernetW5500) {
+      Serial.println(F("W5500 Ethernet controller detected."));
+    }
+    if (Ethernet.linkStatus() == Unknown) {
+      Serial.println(F("Link status unknown. Link status detection is only available with W5200 and W5500."));
+    } else if (Ethernet.linkStatus() == LinkON) {
+      Serial.println(F("Link status: On"));
+    } else if (Ethernet.linkStatus() == LinkOFF) {
+      Serial.println(F("Link status: Off"));
+    }
+  #elif defined(__XTENSA__)
+    Serial.setDebugOutput(true);
+    wifiMulti.addAP("RC24", "");
+    wifiMulti.addAP("CQRC", "");
+    WiFi.mode(WIFI_STA);
+    IPAddress gateway_ip(192, 168, 0, 1);
+    WiFi.config(client_ip, gateway_ip, gateway_ip);
+  #endif
   return true;
 }
 
 void HomeControl::connect() {
-  client.stop();
-  Serial.print(F("Connecting to server: "));
-  if (client.connect(server_ip, port)) {
-    Serial.println(F("OK"));
-  } else {
-    Serial.println(F("failed"));
-  }
+  #if defined(__AVR__)
+    client.stop();
+    Serial.print(F("Connecting to server: "));
+    if (client.connect(server_ip, port)) {
+      Serial.println(F("OK"));
+    } else {
+      Serial.println(F("failed"));
+    }
+  #elif defined(__XTENSA__)
+    client.stop();
+    Serial.print(F("Connecting to WiFi: "));
+    if (wifiMulti.run(5000) == WL_CONNECTED) {
+      Serial.print(F("WiFi connected: "));
+      Serial.print(WiFi.SSID());
+      Serial.print(F("Connecting to server: "));
+      Serial.print(F(" "));
+      if (client.connect(server_ip, port)) {
+        Serial.println(F("OK"));
+      } else {
+        Serial.println(F("failed"));
+      }
+    } else {
+      Serial.println(F("WiFi not connected!"));
+    }
+  #endif
 }
 
 void HomeControl::addDevice(Device &device) {
@@ -214,67 +267,6 @@ void HomeControl::pong() {
   turnOnTestModeLED(500);
 }
 
-//void HomeControl::sendData() {
-//  DynamicJsonDocument doc(1000);
-//  JsonObject device_json_object = doc.createNestedObject("device");
-//  for(int i = 0; i < deviceCount; i++) {
-//    device.
-//    JsonObject channel_data = channel.createNestedObject( String(devices[i]->channel, DEC));
-//    if (devices[i]->device_mode == DEVICE_DIGITAL_OUTPUT || devices[i]->device_mode == DEVICE_DIGITAL_INPUT) {
-//      JsonObject channel_data = channel.createNestedObject( String(devices[i]->channel, DEC));
-//      channel_data["t"] = "b"; /* boolean */
-//      channel_data["v"] = devices[i]->bool_value;
-//      channel_data["o"] = devices[i]->output();
-//      channel_data["p"] = devices[i]->pin;
-//    } else if (devices[i]->device_mode == DEVICE_ANALOG_INPUT) {
-//      JsonObject channel_data = channel.createNestedObject( String(devices[i]->channel, DEC));
-//      channel_data["t"] = "d2"; /*decimal with 2 places */
-//      channel_data["v"] = round(devices[i]->float_value * 100L);
-//      channel_data["o"] = devices[i]->output();
-//      channel_data["p"] = devices[i]->pin;
-//    } else if (devices[i]->device_mode == DEVICE_ANALOG_OUTPUT || devices[i]->device_mode == DEVICE_SERVO) {
-//      JsonObject channel_data = channel.createNestedObject( String(devices[i]->channel, DEC));
-//      channel_data["t"] = "p"; /* percentual integer */
-//      channel_data["v"] = devices[i]->int_value;
-//      channel_data["o"] = devices[i]->output();
-//      channel_data["p"] = devices[i]->pin;
-//    } else if (devices[i]->device_mode == DEVICE_DHT22 || devices[i]->device_mode == DEVICE_HDC1080_I2C) {
-//      JsonObject channel_data = channel.createNestedObject( String(devices[i]->channel, DEC));
-//      channel_data["t"] = "d2"; /*decimal with 2 places */
-//      channel_data["v"] = round(devices[i]->temperature * 100L);
-//      channel_data["o"] = devices[i]->output();
-//      channel_data["p"] = devices[i]->pin;
-//      JsonObject channel_data2 = channel.createNestedObject( String(devices[i]->secondary_channel, DEC));
-//      channel_data2["t"] = "d2"; /*decimal with 2 places */
-//      channel_data2["v"] = round(devices[i]->humidity * 100L);
-//      channel_data2["o"] = devices[i]->output();
-//      channel_data2["p"] = devices[i]->pin;
-//    } else if (devices[i]->device_mode == DEVICE_CCS811_I2C) {
-//      JsonObject channel_data = channel.createNestedObject( String(devices[i]->channel, DEC));
-//      channel_data["t"] = "d2"; /*decimal with 2 places */
-//      channel_data["v"] = round(devices[i]->co2 * 100L);
-//      channel_data["o"] = devices[i]->output();
-//      channel_data["p"] = devices[i]->pin;
-//      JsonObject channel_data2 = channel.createNestedObject( String(devices[i]->secondary_channel, DEC));
-//      channel_data2["t"] = "d2"; /*decimal with 2 places */
-//      channel_data2["v"] = round(devices[i]->tvoc * 100L);
-//      channel_data2["o"] = devices[i]->output();
-//      channel_data2["p"] = devices[i]->pin;
-//    } else if (devices[i]->device_mode == DEVICE_MG811) {
-//      JsonObject channel_data = channel.createNestedObject( String(devices[i]->channel, DEC));
-//      channel_data["t"] = "d2"; /*decimal with 2 places */
-//      channel_data["v"] = devices[i]->int_value * 100L;
-//      channel_data["o"] = devices[i]->output();
-//      channel_data["p"] = devices[i]->pin;
-//    }
-//  }
-//  Serial.println(F("Sending data to Automator"));
-//  udp.beginPacket(automatorIP, AUTOMATOR_UDP_PORT);
-//  //serializeJson(doc, udp);
-//  serializeMsgPack(doc, udp);
-//  availableMemory();
-//  udp.endPacket();  
-//}
 
 void HomeControl::loop() {
   readSerialInput();
@@ -294,7 +286,7 @@ void HomeControl::loop() {
     
     for(int i = 0; i < device_count; i++) {
       if (devices[i]->report && devices[i]->value_initialized) {
-        Serial.print("Sending: ");
+        Serial.print(F("Sending: "));
         serializeJson(devices[i]->sendData(), Serial);
         Serial.println();
         serializeJson(devices[i]->sendData(), client);
@@ -354,11 +346,14 @@ bool HomeControl::connectionExpired() {
 }
 
 void HomeControl::availableMemory() {
-  int size = 8192; // SRAM memory of the arduino mega
-  byte *buf;
-  while ((buf = (byte *) malloc(--size)) == NULL) {};
-  free(buf);
-  Serial.print(F("Free memory: ")); Serial.println(size);
+  #if defined(__AVR__)
+    int size = 8192; // SRAM memory of the arduino mega
+    byte *buf;
+    while ((buf = (byte *) malloc(--size)) == NULL);
+    free(buf);
+    Serial.print(F("Free memory: ")); Serial.println(size);
+  #elif defined(__XTENSA__)
+  #endif
 }
 
 void HomeControl::readSerialInput() {
