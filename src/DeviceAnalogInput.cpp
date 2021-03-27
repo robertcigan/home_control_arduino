@@ -1,6 +1,6 @@
-#include "DeviceValue.h"
+#include "DeviceAnalogInput.h"
 
-DeviceValue::DeviceValue(uint32_t device_id, uint8_t apin) {
+DeviceAnalogInput::DeviceAnalogInput(uint32_t device_id, uint8_t apin) {
   setup();
   this->apin = apin;
   this->device_id = device_id;
@@ -9,7 +9,7 @@ DeviceValue::DeviceValue(uint32_t device_id, uint8_t apin) {
   print();
 }
 
-void DeviceValue::loop() {
+void DeviceAnalogInput::loop() {
   if ((last_run + poll) < millis() || last_run > millis()) { // read value if over the poll time or millis rotated
     float new_value = analogRead(apin) / 1024.0;
     if (new_value != value) {
@@ -23,10 +23,10 @@ void DeviceValue::loop() {
   }
 }
 
-void DeviceValue::action(JsonObject doc) {
+void DeviceAnalogInput::action(JsonObject doc) {
 }
 
-DynamicJsonDocument DeviceValue::sendData() {
+DynamicJsonDocument DeviceAnalogInput::sendData() {
   DynamicJsonDocument doc(500);
   JsonObject json_object = doc.createNestedObject("device");
   json_object["value"] = value;
@@ -34,14 +34,14 @@ DynamicJsonDocument DeviceValue::sendData() {
   return doc;
 }
 
-void DeviceValue::uninitialize() {
+void DeviceAnalogInput::uninitialize() {
   pinMode(apin, INPUT);
 }
 
-bool DeviceValue::is_output() {
+bool DeviceAnalogInput::is_output() {
   return false;
 }
 
-void DeviceValue::print() {
+void DeviceAnalogInput::print() {
   Serial.println(F("Value: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" analog pin:")); Serial.print(apin); 
 }

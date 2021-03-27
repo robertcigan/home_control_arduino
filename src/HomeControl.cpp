@@ -232,11 +232,8 @@ void HomeControl::parseCommand() {
     } else if (doc["add"]["type"] == F("distance")) {
       DeviceDistance *device = new DeviceDistance(doc["add"]["id"], doc["add"]["write_pin"], doc["add"]["read_pin"]);
       addDevice(*device);
-    } else if (doc["add"]["type"] == F("player")) {
-      DevicePlayer *device = new DevicePlayer(doc["add"]["id"].as<uint32_t>());
-      addDevice(*device);
-    } else if (doc["add"]["type"] == F("value")) {
-      DeviceValue *device = new DeviceValue(doc["add"]["id"], doc["add"]["apin"]);
+    } else if (doc["add"]["type"] == F("analog_input")) {
+      DeviceAnalogInput *device = new DeviceAnalogInput(doc["add"]["id"], doc["add"]["apin"]);
       addDevice(*device);
     }
   } else if (doc["reset_devices"]) {

@@ -1,11 +1,11 @@
-#ifndef DEVICE_VALUE_H
-#define DEVICE_VALUE_H
+#ifndef DEVICE_ANALOG_INPUT_H
+#define DEVICE_ANALOG_INPUT_H
 #include <Arduino.h>
 #include "Device.h"
 
-class DeviceValue : public Device {
+class DeviceAnalogInput : public Device {
   public:
-    DeviceValue(uint32_t device_id, uint8_t apin);
+    DeviceAnalogInput(uint32_t device_id, uint8_t apin);
     bool is_output();
     void loop();
     void action(JsonObject doc);
