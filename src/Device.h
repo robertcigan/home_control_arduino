@@ -1,7 +1,7 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 #include <Arduino.h>
-#if defined(__AVR__)
+#if defined(__AVR_ATmega2560__)
   #include <Ethernet.h>
 #elif defined(ESP8266)
   #include <ESP8266WiFi.h>

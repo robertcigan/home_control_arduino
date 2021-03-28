@@ -2,7 +2,7 @@
 #define HOME_CONTROL_H
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#if defined(__AVR__)
+#if defined(__AVR_ATmega2560__)
   #include <Ethernet.h>
 #elif defined(ESP8266)
   #include <ESP8266WiFi.h>
@@ -60,7 +60,7 @@ class HomeControl {
     uint16_t inIndex;
     uint8_t inStatus; // 0 - wait, 1 - command
     SimpleTimer timer;
-    #if defined(__AVR__)
+    #if defined(__AVR_ATmega2560__)
       EthernetClient client;
     #elif defined(ESP8266)
       ESP8266WiFiMulti wifiMulti;

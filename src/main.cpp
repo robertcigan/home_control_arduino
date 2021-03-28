@@ -5,7 +5,8 @@ HomeControl home_control;
 
 void setup() {
   Wire.begin();
-  Serial.begin(9600);
+  Serial.begin(9600);\
+  Serial.println(F("Home Control loading..."));
   home_control.setup();
 }
 

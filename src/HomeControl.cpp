@@ -4,7 +4,7 @@ HomeControl::HomeControl() {
   this->device_count = 0;
   this->last_request = millis();
   this->autoreset = 0;
-  this->mac[0] = 0x00;
+  this->mac[0] = 0xDE;
   this->mac[1] = 0xAA;
   this->mac[2] = 0xBB;
   this->mac[3] = 0xCC;
@@ -21,7 +21,7 @@ HomeControl::HomeControl() {
 }
 
 bool HomeControl::setup() {
-  #if defined(__AVR__)
+  #if defined(__AVR_ATmega2560__)
     pinMode(LED_BUILTIN, OUTPUT); //TEST LED
     pinMode(10, OUTPUT);   // set the Ethernet SS pin as an output (necessary!)
     digitalWrite(10, HIGH);
@@ -35,7 +35,7 @@ bool HomeControl::setup() {
     return false; 
   }
     if (setupNetwork()) {
-      Serial.println(F("Ethernet setup successfull!"));
+      Serial.println(F("Network setup successfull!"));
     } else {
       //return false; 
     }
@@ -58,7 +58,7 @@ bool HomeControl::loadConfiguration() {
     }
   } else {
     Serial.println("EEPROM not initialized, storing default values now.");
-    #if defined(__AVR__)
+    #if defined(__AVR_ATmega2560__)
       EEPROM.update(EEPROM_CONFIG_SET_OFFSET, EEPROM_INITIALIZED_VALUE);
       EEPROM.update(EEPROM_CONFIG_SET_OFFSET + 1, EEPROM_INITIALIZED_VALUE);
     #elif defined(__XTENSA__)
@@ -72,7 +72,7 @@ bool HomeControl::loadConfiguration() {
 }
 
 bool HomeControl::saveConfiguration() {
-  #if defined(__AVR__)
+  #if defined(__AVR_ATmega2560__)
     for(int i = 0; i <= 3; i++) {
       EEPROM.update(i + EEPROM_CLIENT_IP_OFFSET, client_ip[i]);
     }
@@ -102,7 +102,7 @@ bool HomeControl::saveConfiguration() {
 }
 
 bool HomeControl::setupNetwork() {
-  #if defined(__AVR__)
+  #if defined(__AVR_ATmega2560__)
     Ethernet.begin(mac, client_ip);
     if (Ethernet.hardwareStatus() == EthernetNoHardware) {
       Serial.println(F("Ethernet shield was not found."));
@@ -133,7 +133,7 @@ bool HomeControl::setupNetwork() {
 }
 
 void HomeControl::connect() {
-  #if defined(__AVR__)
+  #if defined(__AVR_ATmega2560__)
     client.stop();
     Serial.print(F("Connecting to server: "));
     if (client.connect(server_ip, port)) {
@@ -343,7 +343,7 @@ bool HomeControl::connectionExpired() {
 }
 
 void HomeControl::availableMemory() {
-  #if defined(__AVR__)
+  #if defined(__AVR_ATmega2560__)
     int size = 8192; // SRAM memory of the arduino mega
     byte *buf;
     while ((buf = (byte *) malloc(--size)) == NULL);

@@ -20,7 +20,7 @@ bool Device::is_output() {
 }
 
 void Device::convertToAnalogPin() {
-  #if defined(__AVR__)
+  #if defined(__AVR_ATmega2560__)
     switch (pin) {
       case 0: apin = A0; break;
       case 1: apin = A1; break;
