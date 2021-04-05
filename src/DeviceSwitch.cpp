@@ -15,7 +15,9 @@ void DeviceSwitch::loop() {
     if (new_value != value) {
       last_value_change = millis();
       value = new_value;
-      Serial.print(F("Pin: ")); Serial.print(pin); Serial.print(F(" change detected to ")); Serial.println(value);
+      #if defined(SHOW_VALUES_IN_SERIAL)
+        Serial.print(F("Pin: ")); Serial.print(pin); Serial.print(F(" change detected to ")); Serial.println(value);
+      #endif
       report = true;
     }
     value_initialized = true;

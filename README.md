@@ -36,6 +36,12 @@ add:
   id:
   apin:
 
+ping: true
+
+responds with { pong: true }
+
+
+
   
 
   Board configuraton over serial:

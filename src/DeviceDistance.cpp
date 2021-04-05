@@ -17,7 +17,9 @@ void DeviceDistance::loop() {
     if (new_value != value) {
       last_value_change = millis();
       value = new_value;
-      Serial.print(F("Distance: ")); Serial.print(read_pin); Serial.print(F(" change detected to ")); Serial.println(value);
+      #if defined(SHOW_VALUES_IN_SERIAL)
+        Serial.print(F("Distance: read pin ")); Serial.print(read_pin); Serial.print(F(" change detected to ")); Serial.println(value);
+      #endif
       report = true;
     }
     value_initialized = true;

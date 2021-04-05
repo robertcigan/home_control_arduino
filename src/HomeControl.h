@@ -1,8 +1,10 @@
 #ifndef HOME_CONTROL_H
 #define HOME_CONTROL_H
+//#define SHOW_MEMORY_IN_SERIAL
+//#define SHOW_VALUES_IN_SERIAL
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#if defined(__AVR__)
+#if defined(__AVR_ATmega2560__)
   #include <Ethernet.h>
 #elif defined(ESP8266)
   #include <ESP8266WiFi.h>
@@ -28,9 +30,9 @@
 #define MAX_DEVICES                     40
 #define INPUT_BUFFER_SIZE               500
 #define SERIAL_INPUT_BUFFER_SIZE        50
-#define VERSION                         2
+#define VERSION                         3
 
-#define EEPROM_INITIALIZED_VALUE         255
+#define EEPROM_INITIALIZED_VALUE        255
 #define EEPROM_CONFIG_SET_OFFSET        0
 #define EEPROM_CLIENT_IP_OFFSET         10
 #define EEPROM_SERVER_IP_OFFSET         14
@@ -49,6 +51,7 @@ class HomeControl {
     uint32_t last_request;
     uint16_t autoreset; 
     bool connectionExpired();
+    bool devicesSet;
 
   private:
     byte mac[6];
@@ -60,7 +63,7 @@ class HomeControl {
     uint16_t inIndex;
     uint8_t inStatus; // 0 - wait, 1 - command
     SimpleTimer timer;
-    #if defined(__AVR__)
+    #if defined(__AVR_ATmega2560__)
       EthernetClient client;
     #elif defined(ESP8266)
       ESP8266WiFiMulti wifiMulti;
@@ -80,6 +83,7 @@ class HomeControl {
     void resetInputData();
     void parseCommand();
     void pong();
+    void sendDevices();
 
     void turnOnTestModeLED(int timeout);
     static void turnOffTestModeLED();

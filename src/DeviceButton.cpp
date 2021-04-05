@@ -15,7 +15,9 @@ void DeviceButton::loop() {
     if (new_value != value) {
       last_value_change = millis();
       if (new_value == HIGH) {
-        Serial.print(F("Pin: ")); Serial.print(pin); Serial.println(F(" change detected"));
+        #if defined(SHOW_VALUES_IN_SERIAL)
+          Serial.print(F("Pin: ")); Serial.print(pin); Serial.println(F(" change detected"));
+        #endif
         report = true;
       }
       value = new_value;      
