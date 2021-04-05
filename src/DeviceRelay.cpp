@@ -19,7 +19,9 @@ void DeviceRelay::set_relay(bool new_value) {
     last_value_change = millis();
     value = new_value;
     digitalWrite(pin, value ? LOW : HIGH);
-    Serial.print(F("Pin: ")); Serial.print(pin); Serial.print(F(" relay set to ")); Serial.println(value);
+    #if defined(SHOW_VALUES_IN_SERIAL)
+      Serial.print(F("Pin: ")); Serial.print(pin); Serial.print(F(" relay set to ")); Serial.println(value);
+    #endif
   } 
 }
 

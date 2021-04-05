@@ -17,11 +17,15 @@ void DevicePlayer::loop() {
 void DevicePlayer::play(uint8_t directory, uint8_t file) {
   player->playWithFileName(directory, file);
   last_value_change = millis();
-  Serial.print(F("Player: ")); Serial.print(F(" play ")); Serial.print(directory); Serial.print("/"); Serial.println(file);
+  #if defined(SHOW_VALUES_IN_SERIAL)
+    Serial.print(F("Player: ")); Serial.print(F(" play ")); Serial.print(directory); Serial.print("/"); Serial.println(file);
+  #endif
 }
 
 void DevicePlayer::volume(uint8_t vol) {
-  Serial.print(F("Player: ")); Serial.print(F(" volume ")); Serial.print(vol); Serial.print("/"); Serial.println(23);
+  #if defined(SHOW_VALUES_IN_SERIAL)
+    Serial.print(F("Player: ")); Serial.print(F(" volume ")); Serial.print(vol); Serial.print("/"); Serial.println(23);
+  #endif
   player->setVolume(vol);
 }
   

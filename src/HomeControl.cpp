@@ -1,6 +1,7 @@
 #include "HomeControl.h"
 
 HomeControl::HomeControl() {
+  this->devicesSet = false;
   this->device_count = 0;
   this->last_request = millis();
   this->autoreset = 0;
@@ -17,7 +18,7 @@ HomeControl::HomeControl() {
   this->inIndex = 0;
   this->inStatus = 0; // 0 - wait, 1 - command
 
-  this->serialInIndex = 0;
+  this->serialInIndex = 0; 
 }
 
 bool HomeControl::setup() {
@@ -138,6 +139,9 @@ void HomeControl::connect() {
     Serial.print(F("Connecting to server: "));
     if (client.connect(server_ip, port)) {
       Serial.println(F("OK"));
+      if (!devicesSet) {
+        sendDevices();
+      }
     } else {
       Serial.println(F("failed"));
     }
@@ -166,6 +170,7 @@ void HomeControl::addDevice(Device &device) {
   } else {
     devices[device_count] = &device;
     device_count = device_count + 1;
+    devicesSet = true;
   }
 }
 
@@ -197,7 +202,7 @@ void HomeControl::readInput() {
         inIndex++; // Increment where to write next
       }
     } else {
-      Serial.println(F("Input data too large!"));
+      Serial.println(F("Input data overflow!"));
       resetInputData();
     }
   }
@@ -238,6 +243,7 @@ void HomeControl::parseCommand() {
     }
   } else if (doc["reset_devices"]) {
     deleteAllDevices();
+    devicesSet = false;
   } else if (doc["ping"]) {
     pong();
   } else if (doc["read"]) {
@@ -264,23 +270,26 @@ void HomeControl::pong() {
   turnOnTestModeLED(500);
 }
 
+void HomeControl::sendDevices() {
+  client.write("{\"send_devices\": true}\n");
+}
 
 void HomeControl::loop() {
   readSerialInput();
   if (!client.connected()) {
-    Serial.println(F("no connection"));
     delay(5000);
-    //resetRelays();
     connect();
   } else {
     readInput();
     
+    // loop through all input devices to read their data
     for(int i = 0; i < device_count; i++) {
       if (!(devices[i]->is_output())) {
         devices[i]->loop();
       }
     }
     
+    // if ther's value to report to server from devices, sent it
     for(int i = 0; i < device_count; i++) {
       if (devices[i]->report && devices[i]->value_initialized) {
         Serial.print(F("Sending: "));
@@ -289,13 +298,11 @@ void HomeControl::loop() {
         serializeJson(devices[i]->sendData(), client);
         client.write("\n");
       }
-    }
-
-    for(int i = 0; i < device_count; i++) {
       if (!(devices[i]->is_output())) {
         devices[i]->report = false;
       }
     }
+    //flush all data from buffer to network
     client.flush();
   }
   timer.run();
@@ -343,13 +350,15 @@ bool HomeControl::connectionExpired() {
 }
 
 void HomeControl::availableMemory() {
-  #if defined(__AVR_ATmega2560__)
-    int size = 8192; // SRAM memory of the arduino mega
-    byte *buf;
-    while ((buf = (byte *) malloc(--size)) == NULL);
-    free(buf);
-    Serial.print(F("Free memory: ")); Serial.println(size);
-  #elif defined(__XTENSA__)
+  #if defined(SHOW_MEMORY_IN_SERIAL)
+    #if defined(__AVR_ATmega2560__)
+      int size = 8192; // SRAM memory of the arduino mega
+      byte *buf;
+      while ((buf = (byte *) malloc(--size)) == NULL);
+      free(buf);
+      Serial.print(F("Free memory: ")); Serial.println(size);
+    #elif defined(__XTENSA__)
+    #endif
   #endif
 }
 

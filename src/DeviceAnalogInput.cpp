@@ -17,11 +17,13 @@ void DeviceAnalogInput::loop() {
     #elif defined(__XTENSA__)
       float conversion =  3.3 / 1023;
     #endif
-    float new_value = analogRead(apin) * conversion;
+    float new_value = (int)(analogRead(apin) * conversion * 100 + 0.5) / 100.0;
     if (new_value != value) {
       last_value_change = millis();
       value = new_value;
-      Serial.print(F("Value: ")); Serial.print(apin); Serial.print(F(" change detected to ")); Serial.println(value);
+      #if defined(SHOW_VALUES_IN_SERIAL)
+        Serial.print(F("Analog pin: ")); Serial.print(apin); Serial.print(F(" change detected to ")); Serial.println(value);
+      #endif
       report = true;
     }
     value_initialized = true;
@@ -49,5 +51,5 @@ bool DeviceAnalogInput::is_output() {
 }
 
 void DeviceAnalogInput::print() {
-  Serial.println(F("Value: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" analog pin:")); Serial.print(apin); 
+  Serial.println(F("Value: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" analog pin:")); Serial.println(apin); 
 }
