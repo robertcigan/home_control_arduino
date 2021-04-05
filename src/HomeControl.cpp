@@ -334,7 +334,7 @@ void HomeControl::printConfiguration() {
   Serial.println(F("Available commands:"));
   Serial.println(F("  server_ip=123.123.123.123"));
   Serial.println(F("  client_ip=123.123.123.123"));
-  Serial.println(F("  mac=FF:FF:FF:FF:FF:FF"));
+  Serial.println(F("  mac=DE:AD:FF:FF:FF:FF"));
   Serial.println(F("  save"));
 }
 

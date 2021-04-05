@@ -38,4 +38,8 @@ add:
 
   
 
+  Board configuraton over serial:
+  use mac address prefix DE:AD
+  ie. DE:AD:97:8A:30:60
+
 
