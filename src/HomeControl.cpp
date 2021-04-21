@@ -240,6 +240,9 @@ void HomeControl::parseCommand() {
     } else if (doc["add"]["type"] == F("analog_input")) {
       DeviceAnalogInput *device = new DeviceAnalogInput(doc["add"]["id"], doc["add"]["apin"]);
       addDevice(*device);
+    } else if (doc["add"]["type"] == F("ds18b20")) {
+      DeviceDS18B20 *device = new DeviceDS18B20(doc["add"]["id"], doc["add"]["pin"]);
+      addDevice(*device);
     }
   } else if (doc["reset_devices"]) {
     deleteAllDevices();
