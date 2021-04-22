@@ -26,6 +26,7 @@
 #include "DevicePlayer.h"
 #include "DeviceDistance.h"
 #include "DeviceAnalogInput.h"
+#include "DeviceDS18B20.h"
 
 #define MAX_DEVICES                     40
 #define INPUT_BUFFER_SIZE               500
