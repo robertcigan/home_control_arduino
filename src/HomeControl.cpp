@@ -12,8 +12,12 @@ HomeControl::HomeControl() {
   this->mac[4] = 0xDE;
   this->mac[5] = 0x00;
   this->client_ip = IPAddress(192, 168, 0, 0);
-  this->server_ip = IPAddress(192, 168, 0, 0 );
+  this->server_ip = IPAddress(192, 168, 0, 0);
   this->port = 7777;
+
+  #if defined(ESP8266) || defined(ESP32)
+    this->gateway_ip = IPAddress(192, 168, 0, 0);
+  #endif
   
   this->inIndex = 0;
   this->inStatus = 0; // 0 - wait, 1 - command
@@ -26,7 +30,7 @@ bool HomeControl::setup() {
     pinMode(LED_BUILTIN, OUTPUT); //TEST LED
     pinMode(10, OUTPUT);   // set the Ethernet SS pin as an output (necessary!)
     digitalWrite(10, HIGH);
-  #elif defined(__XTENSA__)
+  #elif defined(ESP8266) || defined(ESP32)
     EEPROM.begin(512);
   #endif
   
@@ -57,6 +61,19 @@ bool HomeControl::loadConfiguration() {
     for(int i = 0; i <= 5; i++) {
       mac[i] = EEPROM.read(i + EEPROM_MAC_OFFSET);
     }
+    
+    #if defined(ESP8266) || defined(ESP32)
+      for(int i = 0; i <= 19; i++) {
+        wifi_ssid_1[i] = EEPROM.read(i + EEPROM_WIFI_SSID_1_OFFSET);
+        wifi_ssid_2[i] = EEPROM.read(i + EEPROM_WIFI_SSID_2_OFFSET);
+        wifi_pass_1[i] = EEPROM.read(i + EEPROM_WIFI_PASS_1_OFFSET);
+        wifi_pass_2[i] = EEPROM.read(i + EEPROM_WIFI_PASS_2_OFFSET);
+      }
+      for(int i = 0; i <= 3; i++) {
+        gateway_ip[i] = EEPROM.read(i + EEPROM_GATEWAY_OFFSET);
+      }
+    #endif
+
   } else {
     Serial.println("EEPROM not initialized, storing default values now.");
     #if defined(__AVR_ATmega2560__)
@@ -83,7 +100,7 @@ bool HomeControl::saveConfiguration() {
     for(int i = 0; i <= 5; i++) {
       EEPROM.update(i + EEPROM_MAC_OFFSET, mac[i]);
     }
-  #elif defined(__XTENSA__)
+  #elif defined(ESP8266) || defined(ESP32)
     for(int i = 0; i <= 3; i++) {
       EEPROM.write(i + EEPROM_CLIENT_IP_OFFSET, client_ip[i]);
     }
@@ -93,6 +110,16 @@ bool HomeControl::saveConfiguration() {
     for(int i = 0; i <= 5; i++) {
       EEPROM.write(i + EEPROM_MAC_OFFSET, mac[i]);
     }
+    for(int i = 0; i <= 19; i++) {
+      EEPROM.write(i + EEPROM_WIFI_SSID_1_OFFSET, wifi_ssid_1[i]);
+      EEPROM.write(i + EEPROM_WIFI_SSID_2_OFFSET, wifi_ssid_2[i]);
+      EEPROM.write(i + EEPROM_WIFI_PASS_1_OFFSET, wifi_pass_1[i]);
+      EEPROM.write(i + EEPROM_WIFI_PASS_2_OFFSET, wifi_pass_1[i]);
+    }
+    for(int i = 0; i <= 3; i++) {
+      EEPROM.write(i + EEPROM_GATEWAY_OFFSET, gateway_ip[i]);
+    }
+
     if (EEPROM.commit()) {
       Serial.println(F("EEPROM successfully committed"));
     } else {
@@ -124,8 +151,9 @@ bool HomeControl::setupNetwork() {
     }
   #elif defined(__XTENSA__)
     Serial.setDebugOutput(true);
-    wifiMulti.addAP("RC24", "");
-    wifiMulti.addAP("CQRC", "");
+    WiFi.persistent(false);
+    wifiMulti.addAP(wifi_ssid_1, wifi_pass_1);
+    wifiMulti.addAP(wifi_ssid_2, wifi_pass_2);
     WiFi.mode(WIFI_STA);
     IPAddress gateway_ip(192, 168, 0, 1);
     WiFi.config(client_ip, gateway_ip, gateway_ip);
@@ -148,7 +176,7 @@ void HomeControl::connect() {
   #elif defined(__XTENSA__)
     client.stop();
     Serial.print(F("Connecting to WiFi: "));
-    if (wifiMulti.run(5000) == WL_CONNECTED) {
+    if (wifiMulti.run(10000) == WL_CONNECTED) {
       Serial.print(F("WiFi connected: "));
       Serial.print(WiFi.SSID());
       Serial.print(F("Connecting to server: "));
@@ -220,51 +248,52 @@ void HomeControl::parseCommand() {
   DeserializationError err = deserializeJson(doc, inData);
   if (err) {
     Serial.print(F("deserializeJson() failed with code ")); Serial.println(err.c_str());
-  }
-  if (doc["add"]) {
-    if (doc["add"]["type"] == F("switch")) {
-      DeviceSwitch *device = new DeviceSwitch(doc["add"]["id"], doc["add"]["pin"]);
-      addDevice(*device);
-    } else if (doc["add"]["type"] == F("button")) {
-      DeviceButton *device = new DeviceButton(doc["add"]["id"], doc["add"]["pin"]);
-      addDevice(*device);
-    } else if (doc["add"]["type"] == F("relay")) {
-      DeviceRelay *device = new DeviceRelay(doc["add"]["id"], doc["add"]["pin"]);
-      addDevice(*device);
-    } else if (doc["add"]["type"] == F("player")) {
-      DevicePlayer *device = new DevicePlayer(doc["add"]["id"].as<uint32_t>());
-      addDevice(*device);
-    } else if (doc["add"]["type"] == F("distance")) {
-      DeviceDistance *device = new DeviceDistance(doc["add"]["id"], doc["add"]["write_pin"], doc["add"]["read_pin"]);
-      addDevice(*device);
-    } else if (doc["add"]["type"] == F("analog_input")) {
-      DeviceAnalogInput *device = new DeviceAnalogInput(doc["add"]["id"], doc["add"]["apin"]);
-      addDevice(*device);
-    } else if (doc["add"]["type"] == F("ds18b20")) {
-      DeviceDS18B20 *device = new DeviceDS18B20(doc["add"]["id"], doc["add"]["pin"]);
-      addDevice(*device);
-    }
-  } else if (doc["reset_devices"]) {
-    deleteAllDevices();
-    devicesSet = false;
-  } else if (doc["ping"]) {
-    pong();
-  } else if (doc["read"]) {
-    for(int i = 0; i < device_count; i++) {
-      if (!(devices[i]->is_output()) && devices[i]->device_id == doc["read"]["id"]) {
-        devices[i]->report = true;
-        break;
-      }
-    }
-  } else if (doc["write"]) {
-    for(int i = 0; i < device_count; i++) {
-      if ((devices[i]->is_output()) && devices[i]->device_id == doc["write"]["id"]) {
-        devices[i]->action(doc["write"]) ;
-        break;
-      }
-    }
   } else {
-    Serial.println(F("Unknown command"));
+    if (doc["add"]) {
+      if (doc["add"]["type"] == F("switch")) {
+        DeviceSwitch *device = new DeviceSwitch(doc["add"]["id"], doc["add"]["pin"]);
+        addDevice(*device);
+      } else if (doc["add"]["type"] == F("button")) {
+        DeviceButton *device = new DeviceButton(doc["add"]["id"], doc["add"]["pin"]);
+        addDevice(*device);
+      } else if (doc["add"]["type"] == F("relay")) {
+        DeviceRelay *device = new DeviceRelay(doc["add"]["id"], doc["add"]["pin"]);
+        addDevice(*device);
+      } else if (doc["add"]["type"] == F("player")) {
+        DevicePlayer *device = new DevicePlayer(doc["add"]["id"].as<uint32_t>());
+        addDevice(*device);
+      } else if (doc["add"]["type"] == F("distance")) {
+        DeviceDistance *device = new DeviceDistance(doc["add"]["id"], doc["add"]["write_pin"], doc["add"]["read_pin"]);
+        addDevice(*device);
+      } else if (doc["add"]["type"] == F("analog_input")) {
+        DeviceAnalogInput *device = new DeviceAnalogInput(doc["add"]["id"], doc["add"]["apin"]);
+        addDevice(*device);
+      } else if (doc["add"]["type"] == F("ds18b20")) {
+        DeviceDS18B20 *device = new DeviceDS18B20(doc["add"]["id"], doc["add"]["pin"]);
+        addDevice(*device);
+      }
+    } else if (doc["reset_devices"]) {
+      deleteAllDevices();
+      devicesSet = false;
+    } else if (doc["ping"]) {
+      pong();
+    } else if (doc["read"]) {
+      for(int i = 0; i < device_count; i++) {
+        if (!(devices[i]->is_output()) && devices[i]->device_id == doc["read"]["id"]) {
+          devices[i]->report = true;
+          break;
+        }
+      }
+    } else if (doc["write"]) {
+      for(int i = 0; i < device_count; i++) {
+        if ((devices[i]->is_output()) && devices[i]->device_id == doc["write"]["id"]) {
+          devices[i]->action(doc["write"]) ;
+          break;
+        }
+      }
+    } else {
+      Serial.println(F("Unknown command"));
+    }
   }
 }
 
@@ -341,6 +370,11 @@ void HomeControl::printConfiguration() {
   Serial.print(F("Server IP:  "));
   Serial.print(server_ip[0]); Serial.print("."); Serial.print(server_ip[1]); Serial.print(F(".")); Serial.print(server_ip[2]); Serial.print(F(".")); Serial.println(server_ip[3]);
   Serial.print(F("Port:       ")); Serial.println(port);
+  #if defined(__XTENSA__)
+    Serial.print(F("Gateway IP:  "));
+    Serial.print(gateway_ip[0]); Serial.print("."); Serial.print(gateway_ip[1]); Serial.print(F(".")); Serial.print(gateway_ip[2]); Serial.print(F(".")); Serial.println(gateway_ip[3]);
+  #endif
+
   Serial.println(F("Available commands:"));
   Serial.println(F("  server_ip=123.123.123.123"));
   Serial.println(F("  client_ip=123.123.123.123"));

@@ -1,7 +1,7 @@
 #ifndef HOME_CONTROL_H
 #define HOME_CONTROL_H
-//#define SHOW_MEMORY_IN_SERIAL
-//#define SHOW_VALUES_IN_SERIAL
+#define SHOW_MEMORY_IN_SERIAL
+#define SHOW_VALUES_IN_SERIAL
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #if defined(__AVR_ATmega2560__)
@@ -39,6 +39,14 @@
 #define EEPROM_SERVER_IP_OFFSET         14
 #define EEPROM_MAC_OFFSET               18
 
+#if defined(ESP8266) || defined(ESP32)
+  #define EEPROM_WIFI_SSID_1_OFFSET            24
+  #define EEPROM_WIFI_SSID_2_OFFSET            44
+  #define EEPROM_WIFI_PASS_1_OFFSET            64
+  #define EEPROM_WIFI_PASS_2_OFFSET            84
+  #define EEPROM_GATEWAY_OFFSET                104
+#endif
+
 class HomeControl {
   public:
     HomeControl();
@@ -69,6 +77,11 @@ class HomeControl {
     #elif defined(ESP8266)
       ESP8266WiFiMulti wifiMulti;
       WiFiClient client;
+      char wifi_ssid_1[20] = "\0";
+      char wifi_ssid_2[20] = "\0";
+      char wifi_pass_1[20] = "\0";
+      char wifi_pass_2[20] = "\0";
+      IPAddress gateway_ip;
     #elif defined(ESP32)
       WiFiMulti wifiMulti;
       WiFiClient client;
