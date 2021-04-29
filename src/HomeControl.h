@@ -77,10 +77,10 @@ class HomeControl {
     #elif defined(ESP8266)
       ESP8266WiFiMulti wifiMulti;
       WiFiClient client;
-      char wifi_ssid_1[20] = "\0";
-      char wifi_ssid_2[20] = "\0";
-      char wifi_pass_1[20] = "\0";
-      char wifi_pass_2[20] = "\0";
+      char wifi_ssid_1[20] = {'\0'};
+      char wifi_ssid_2[20] = {'\0'};
+      char wifi_pass_1[20] = {'\0'};
+      char wifi_pass_2[20] = {'\0'};
       IPAddress gateway_ip;
     #elif defined(ESP32)
       WiFiMulti wifiMulti;

@@ -31,6 +31,7 @@ bool HomeControl::setup() {
     pinMode(10, OUTPUT);   // set the Ethernet SS pin as an output (necessary!)
     digitalWrite(10, HIGH);
   #elif defined(ESP8266) || defined(ESP32)
+    pinMode(LED_BUILTIN, OUTPUT); //TEST LED
     EEPROM.begin(512);
   #endif
   
@@ -155,7 +156,6 @@ bool HomeControl::setupNetwork() {
     wifiMulti.addAP(wifi_ssid_1, wifi_pass_1);
     wifiMulti.addAP(wifi_ssid_2, wifi_pass_2);
     WiFi.mode(WIFI_STA);
-    IPAddress gateway_ip(192, 168, 0, 1);
     WiFi.config(client_ip, gateway_ip, gateway_ip);
   #endif
   return true;
@@ -178,11 +178,17 @@ void HomeControl::connect() {
     Serial.print(F("Connecting to WiFi: "));
     if (wifiMulti.run(10000) == WL_CONNECTED) {
       Serial.print(F("WiFi connected: "));
-      Serial.print(WiFi.SSID());
+      Serial.println(WiFi.SSID());
+      Serial.print(F("Signal Strength: "));
+      Serial.print(WiFi.RSSI());
+      Serial.println(F("dB"));
       Serial.print(F("Connecting to server: "));
       Serial.print(F(" "));
       if (client.connect(server_ip, port)) {
         Serial.println(F("OK"));
+          if (!devicesSet) {
+            sendDevices();
+          }
       } else {
         Serial.println(F("failed"));
       }
@@ -343,12 +349,20 @@ void HomeControl::loop() {
 /***** HELP FUNCTIONS ******/
 
 void HomeControl::turnOnTestModeLED(int timeout) {
-  digitalWrite(LED_BUILTIN, HIGH);
+  #if defined(__AVR_ATmega2560__)
+    digitalWrite(LED_BUILTIN, HIGH);
+  #elif defined(ESP8266) || defined(ESP32)
+    digitalWrite(LED_BUILTIN, LOW);
+  #endif
   timer.setTimeout(timeout, turnOffTestModeLED);
 }
 
 void HomeControl::turnOffTestModeLED() {
-  digitalWrite(LED_BUILTIN, LOW);
+  #if defined(__AVR_ATmega2560__)
+    digitalWrite(LED_BUILTIN, LOW);
+  #elif defined(ESP8266) || defined(ESP32)
+    digitalWrite(LED_BUILTIN, HIGH);
+  #endif
 }
 
 void HomeControl::printConfiguration() {
@@ -370,15 +384,30 @@ void HomeControl::printConfiguration() {
   Serial.print(F("Server IP:  "));
   Serial.print(server_ip[0]); Serial.print("."); Serial.print(server_ip[1]); Serial.print(F(".")); Serial.print(server_ip[2]); Serial.print(F(".")); Serial.println(server_ip[3]);
   Serial.print(F("Port:       ")); Serial.println(port);
-  #if defined(__XTENSA__)
+  #if defined(ESP8266) || defined(ESP32)
     Serial.print(F("Gateway IP:  "));
     Serial.print(gateway_ip[0]); Serial.print("."); Serial.print(gateway_ip[1]); Serial.print(F(".")); Serial.print(gateway_ip[2]); Serial.print(F(".")); Serial.println(gateway_ip[3]);
+    Serial.print(F("WiFi 1 SSID: "));
+    Serial.println(wifi_ssid_1);
+    Serial.print(F("WiFi 1 PASS: "));
+    Serial.println(wifi_pass_1);
+    Serial.print(F("WiFi 2 SSID: "));
+    Serial.println(wifi_ssid_2);
+    Serial.print(F("WiFi 2 PASS: "));
+    Serial.println(wifi_pass_2);
   #endif
 
   Serial.println(F("Available commands:"));
   Serial.println(F("  server_ip=123.123.123.123"));
   Serial.println(F("  client_ip=123.123.123.123"));
   Serial.println(F("  mac=DE:AD:FF:FF:FF:FF"));
+  #if defined(ESP8266) || defined(ESP32)
+    Serial.println(F("  gateway_ip=123.123.123.123"));
+    Serial.println(F("  ssid1=some wifi name"));
+    Serial.println(F("  ssid2=some wifi name"));
+    Serial.println(F("  pass1=some wifi pass"));
+    Serial.println(F("  pass2=some wifi pass"));
+  #endif
   Serial.println(F("  save"));
 }
 
@@ -470,6 +499,32 @@ void HomeControl::parseSerialCommand() {
     token = strtok(NULL, ":");
     mac[5] = strtoul(token, NULL, 16);
     printConfiguration();
+  #if defined(ESP8266) || defined(ESP32)
+    // *************** SET WIFI SSID 1 ADDRESS **************//
+    } else if (strstr(serialInData, "ssid1=")) {
+      Serial.println(F("Setting Wifi 1 SSID \n"));
+      strcpy(wifi_ssid_1, &serialInData[6]);
+      printConfiguration();
+    // *************** SET PASS 1 ADDRESS **************//
+    } else if (strstr(serialInData, "pass1=")) {
+      Serial.println(F("Setting Wifi 1 PASS \n"));
+      strcpy(wifi_pass_1, &serialInData[6]);
+      printConfiguration();
+    
+    // *************** SET SERVER IP **************//
+    } else if (strstr(serialInData, "gateway_ip=")) {
+      Serial.println(F("Setting Gateway IP\n"));
+      char *token;
+      token = strtok(&serialInData[11], ".");
+      gateway_ip[0] = atoi(token);
+      token = strtok(NULL, ".");
+      gateway_ip[1] = atoi(token);
+      token = strtok(NULL, ".");
+      gateway_ip[2] = atoi(token);    
+      token = strtok(NULL, ".");
+      gateway_ip[3] = atoi(token);
+      printConfiguration();
+  #endif
   // *************** STORE CONFIGURATION **************//
   } else if (strstr(serialInData, "save")) {
     Serial.println(F("Saving configuration to EEPROM\n"));
