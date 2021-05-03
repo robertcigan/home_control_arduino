@@ -33,7 +33,7 @@ uint32_t DeviceDistance::read_distance() {
   digitalWrite(write_pin, HIGH);
   delayMicroseconds(10);
   digitalWrite(write_pin, LOW);
-  uint32_t duration = pulseIn(read_pin, HIGH);
+  uint32_t duration = pulseIn(read_pin, HIGH, 50000); // wait max. 50ms (approx. 17m max distance)
   uint32_t distance = duration*0.034/2;
   if (distance > 999) {
     distance = 999;

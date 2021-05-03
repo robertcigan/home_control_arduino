@@ -40,11 +40,11 @@ bool HomeControl::setup() {
   } else {
     return false; 
   }
-    if (setupNetwork()) {
-      Serial.println(F("Network setup successfull!"));
-    } else {
-      //return false; 
-    }
+  // if (setupNetwork()) {
+  //   Serial.println(F("Network setup successfull!"));
+  // } else {
+  //   //return false; 
+  // }
   availableMemory();
   return true;
 }
@@ -162,6 +162,7 @@ bool HomeControl::setupNetwork() {
 }
 
 void HomeControl::connect() {
+  setupNetwork();
   #if defined(__AVR_ATmega2560__)
     client.stop();
     Serial.print(F("Connecting to server: "));
