@@ -1,5 +1,10 @@
 {
   "files.associations": {
-    "sstream": "cpp"
+    "sstream": "cpp",
+    "functional": "cpp",
+    "array": "cpp",
+    "tuple": "cpp",
+    "type_traits": "cpp",
+    "utility": "cpp"
   }
 }

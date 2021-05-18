@@ -31,7 +31,7 @@
 #define MAX_DEVICES                     40
 #define INPUT_BUFFER_SIZE               500
 #define SERIAL_INPUT_BUFFER_SIZE        50
-#define VERSION                         3
+#define VERSION                         4
 
 #define EEPROM_INITIALIZED_VALUE        255
 #define EEPROM_CONFIG_SET_OFFSET        0
@@ -59,7 +59,7 @@ class HomeControl {
     static void availableMemory();
     uint32_t last_request;
     uint16_t autoreset; 
-    bool connectionExpired();
+    //bool connectionExpired();
     bool devicesSet;
 
   private:
@@ -86,7 +86,11 @@ class HomeControl {
       WiFiMulti wifiMulti;
       WiFiClient client;
     #endif
-    bool setupNetwork();    
+    #if defined(ESP8266) || defined(ESP32)
+      float getRSSI();
+    #endif
+    bool setupConnection();
+    void setNetwork();  
     Device *devices[MAX_DEVICES];
 
     void connect();
@@ -98,6 +102,8 @@ class HomeControl {
     void parseCommand();
     void pong();
     void sendDevices();
+    void loopDevices();
+    void reportDevices();
 
     void turnOnTestModeLED(int timeout);
     static void turnOffTestModeLED();
@@ -107,6 +113,7 @@ class HomeControl {
     void readSerialInput();
     void resetSerialInputData();
     void parseSerialCommand();
+    
  };
 
 #endif

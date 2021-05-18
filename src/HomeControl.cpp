@@ -40,7 +40,7 @@ bool HomeControl::setup() {
   } else {
     return false; 
   }
-    if (setupNetwork()) {
+    if (setupConnection()) {
       Serial.println(F("Network setup successfull!"));
     } else {
       //return false; 
@@ -115,7 +115,7 @@ bool HomeControl::saveConfiguration() {
       EEPROM.write(i + EEPROM_WIFI_SSID_1_OFFSET, wifi_ssid_1[i]);
       EEPROM.write(i + EEPROM_WIFI_SSID_2_OFFSET, wifi_ssid_2[i]);
       EEPROM.write(i + EEPROM_WIFI_PASS_1_OFFSET, wifi_pass_1[i]);
-      EEPROM.write(i + EEPROM_WIFI_PASS_2_OFFSET, wifi_pass_1[i]);
+      EEPROM.write(i + EEPROM_WIFI_PASS_2_OFFSET, wifi_pass_2[i]);
     }
     for(int i = 0; i <= 3; i++) {
       EEPROM.write(i + EEPROM_GATEWAY_OFFSET, gateway_ip[i]);
@@ -130,7 +130,22 @@ bool HomeControl::saveConfiguration() {
   return true;
 }
 
-bool HomeControl::setupNetwork() {
+bool HomeControl::setupConnection() {
+  #if defined(__AVR_ATmega2560__)
+    
+  #elif defined(__XTENSA__)
+    #if defined(SHOW_VALUES_IN_SERIAL)
+      Serial.setDebugOutput(true);
+    #endif
+    WiFi.persistent(false);
+    wifiMulti.addAP(wifi_ssid_1, wifi_pass_1);
+    wifiMulti.addAP(wifi_ssid_2, wifi_pass_2);
+  #endif
+  setNetwork();
+  return true;
+}
+
+void HomeControl::setNetwork() {
   #if defined(__AVR_ATmega2560__)
     Ethernet.begin(mac, client_ip);
     if (Ethernet.hardwareStatus() == EthernetNoHardware) {
@@ -150,18 +165,14 @@ bool HomeControl::setupNetwork() {
     } else if (Ethernet.linkStatus() == LinkOFF) {
       Serial.println(F("Link status: Off"));
     }
-  #elif defined(__XTENSA__)
-    Serial.setDebugOutput(true);
-    WiFi.persistent(false);
-    wifiMulti.addAP(wifi_ssid_1, wifi_pass_1);
-    wifiMulti.addAP(wifi_ssid_2, wifi_pass_2);
+  #elif defined(__XTENSA__)    
     WiFi.mode(WIFI_STA);
     WiFi.config(client_ip, gateway_ip, gateway_ip);
   #endif
-  return true;
 }
 
 void HomeControl::connect() {
+  setNetwork(); // set network again if W5500 looses data due to rest or so
   #if defined(__AVR_ATmega2560__)
     client.stop();
     Serial.print(F("Connecting to server: "));
@@ -176,12 +187,12 @@ void HomeControl::connect() {
   #elif defined(__XTENSA__)
     client.stop();
     Serial.print(F("Connecting to WiFi: "));
-    if (wifiMulti.run(10000) == WL_CONNECTED) {
+    if (wifiMulti.run(5000) == WL_CONNECTED) {
       Serial.print(F("WiFi connected: "));
       Serial.println(WiFi.SSID());
       Serial.print(F("Signal Strength: "));
-      Serial.print(WiFi.RSSI());
-      Serial.println(F("dB"));
+      Serial.print(getRSSI());
+      Serial.println(F("%"));
       Serial.print(F("Connecting to server: "));
       Serial.print(F(" "));
       if (client.connect(server_ip, port)) {
@@ -304,28 +315,50 @@ void HomeControl::parseCommand() {
 }
 
 void HomeControl::pong() {
-  client.write("{\"pong\": true}\n");
-  turnOnTestModeLED(500);
+  DynamicJsonDocument doc(200);
+  doc["pong"] = true;
+  doc["version"] = VERSION;
+  #if defined(ESP8266) || defined(ESP32)
+    JsonObject wifi_object = doc.createNestedObject("wifi");
+    wifi_object["ssid"] = WiFi.SSID();
+    wifi_object["rssi"] = getRSSI();
+  #endif
+  Serial.print(F("Sending: "));
+  serializeJson(doc, Serial);
+  Serial.print("\n");
+  serializeJson(doc, client);
+  client.write("\n");
+  turnOnTestModeLED(250);
 }
 
 void HomeControl::sendDevices() {
   client.write("{\"send_devices\": true}\n");
 }
 
+// void HomeControl::loop() {
+//   readSerialInput();
+//   if (!client.connected()) {
+//     delay(2000);
+//     connect();
+//     loopDevices();
+//   } else {
+//     readInput();
+//     loopDevices();
+//     reportDevices();
+//   }
+//   timer.run();
+// }
+
 void HomeControl::loop() {
   readSerialInput();
   if (!client.connected()) {
+    turnOnTestModeLED(0);
     delay(5000);
     connect();
   } else {
     readInput();
     
-    // loop through all input devices to read their data
-    for(int i = 0; i < device_count; i++) {
-      if (!(devices[i]->is_output())) {
-        devices[i]->loop();
-      }
-    }
+    loopDevices();
     
     // if ther's value to report to server from devices, sent it
     for(int i = 0; i < device_count; i++) {
@@ -346,6 +379,33 @@ void HomeControl::loop() {
   timer.run();
 }
 
+void HomeControl::loopDevices() {
+  // loop through all input devices to read their data
+  for(int i = 0; i < device_count; i++) {
+    if (!(devices[i]->is_output())) {
+      devices[i]->loop();
+    }
+  }
+}
+
+void HomeControl::reportDevices() {
+  // if there is value to report to server from devices, sent it
+  for(int i = 0; i < device_count; i++) {
+    if (devices[i]->report && devices[i]->value_initialized) {
+      Serial.print(F("Sending: "));
+      serializeJson(devices[i]->sendData(), Serial);
+      Serial.println();
+      serializeJson(devices[i]->sendData(), client);
+      client.write("\n");
+    }
+    if (!(devices[i]->is_output())) {
+      devices[i]->report = false;
+    }
+  }
+  //flush all data from buffer to network
+  client.flush();
+}
+
 /***** HELP FUNCTIONS ******/
 
 void HomeControl::turnOnTestModeLED(int timeout) {
@@ -354,7 +414,9 @@ void HomeControl::turnOnTestModeLED(int timeout) {
   #elif defined(ESP8266) || defined(ESP32)
     digitalWrite(LED_BUILTIN, LOW);
   #endif
-  timer.setTimeout(timeout, turnOffTestModeLED);
+  if (timeout > 0) {
+    timer.setTimeout(timeout, turnOffTestModeLED);
+  }
 }
 
 void HomeControl::turnOffTestModeLED() {
@@ -411,9 +473,9 @@ void HomeControl::printConfiguration() {
   Serial.println(F("  save"));
 }
 
-bool HomeControl::connectionExpired() {
-  return (autoreset > 0 && ((last_request + autoreset * 1000L) < millis() || last_request > millis()));
-}
+// bool HomeControl::connectionExpired() {
+//   return (autoreset > 0 && ((last_request + autoreset * 1000L) < millis() || last_request > millis()));
+// }
 
 void HomeControl::availableMemory() {
   #if defined(SHOW_MEMORY_IN_SERIAL)
@@ -428,6 +490,14 @@ void HomeControl::availableMemory() {
   #endif
 }
 
+#if defined(ESP8266) || defined(ESP32)
+  float HomeControl::getRSSI() {
+    float rssi = WiFi.RSSI();
+    rssi = isnan(rssi) ? -100.0 : rssi;
+    return min(max(2 * (rssi + 100.0), 0.0), 100.0);
+  }
+#endif
+ 
 void HomeControl::readSerialInput() {
   char inChar=-1;
   while(Serial.available() > 0) {
@@ -509,6 +579,16 @@ void HomeControl::parseSerialCommand() {
     } else if (strstr(serialInData, "pass1=")) {
       Serial.println(F("Setting Wifi 1 PASS \n"));
       strcpy(wifi_pass_1, &serialInData[6]);
+      printConfiguration();
+    // *************** SET WIFI SSID 2 ADDRESS **************//
+    } else if (strstr(serialInData, "ssid2=")) {
+      Serial.println(F("Setting Wifi 2 SSID \n"));
+      strcpy(wifi_ssid_2, &serialInData[6]);
+      printConfiguration();
+    // *************** SET PASS 2 ADDRESS **************//
+    } else if (strstr(serialInData, "pass2=")) {
+      Serial.println(F("Setting Wifi 2 PASS \n"));
+      strcpy(wifi_pass_2, &serialInData[6]);
       printConfiguration();
     
     // *************** SET SERVER IP **************//
