@@ -40,11 +40,11 @@ bool HomeControl::setup() {
   } else {
     return false; 
   }
-    if (setupConnection()) {
-      Serial.println(F("Network setup successfull!"));
-    } else {
-      //return false; 
-    }
+  if (setupConnection()) {
+    Serial.println(F("Network setup successfull!"));
+  } else {
+    return false; 
+  }
   availableMemory();
   return true;
 }
