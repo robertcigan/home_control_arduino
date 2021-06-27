@@ -6,13 +6,22 @@ DeviceSwitch::DeviceSwitch(uint32_t device_id, uint8_t pin, uint32_t poll, bool 
   this->device_id = device_id;
   this->poll = poll;
   this->inverted = inverted;
-  pinMode(pin, INPUT_PULLUP);
+  if (inverted) {
+    pinMode(pin, INPUT);
+  } else {
+    pinMode(pin, INPUT_PULLUP);
+  }
   print();
 }
 
 void DeviceSwitch::loop() {
   if ((last_run + poll) < millis() || last_run > millis()) { // read value if over the poll time or millis rotated
-    bool new_value = !digitalRead(pin);
+    bool new_value;
+    if (inverted) {
+      new_value = digitalRead(pin);
+    } else {
+      new_value = !digitalRead(pin); // PULLUP - ground pin - connected == 1
+    }
     if (new_value != value) {
       last_value_change = millis();
       value = new_value;
