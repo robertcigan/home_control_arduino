@@ -1,10 +1,10 @@
 #include "DeviceDS18B20.h"
 
-DeviceDS18B20::DeviceDS18B20(uint32_t device_id, uint8_t pin) {
+DeviceDS18B20::DeviceDS18B20(uint32_t device_id, uint8_t pin, uint32_t poll) {
   setup();
   this->pin = pin;
   this->device_id = device_id;
-  this->poll = 60000;
+  this->poll = poll;
   pinMode(pin, INPUT);
   this->one_wire = new OneWire(pin);
   this->sensor = new DS18B20(this->one_wire);

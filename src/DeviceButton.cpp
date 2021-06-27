@@ -1,10 +1,11 @@
 #include "DeviceButton.h"
 
-DeviceButton::DeviceButton(uint32_t device_id, uint8_t pin) {
+DeviceButton::DeviceButton(uint32_t device_id, uint8_t pin, uint32_t poll, bool inverted) {
   setup();
   this->pin = pin;
   this->device_id = device_id;
-  this->poll = 50;
+  this->poll = poll;
+  this->inverted = inverted;
   pinMode(pin, INPUT_PULLUP);
   print();
 }

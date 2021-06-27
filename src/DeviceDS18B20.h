@@ -7,7 +7,7 @@
 
 class DeviceDS18B20 : public Device {
   public:
-    DeviceDS18B20(uint32_t device_id, uint8_t pin);
+    DeviceDS18B20(uint32_t device_id, uint8_t pin, uint32_t poll);
     bool is_output();
     void loop();
     void action(JsonObject doc);

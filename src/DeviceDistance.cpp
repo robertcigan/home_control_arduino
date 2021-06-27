@@ -1,11 +1,11 @@
 #include "DeviceDistance.h"
 
-DeviceDistance::DeviceDistance(uint32_t device_id, uint8_t write_pin, uint8_t read_pin) {
+DeviceDistance::DeviceDistance(uint32_t device_id, uint8_t write_pin, uint8_t read_pin, uint32_t poll) {
   setup();
   this->read_pin = read_pin;
   this->write_pin = write_pin;
   this->device_id = device_id;
-  this->poll = 30000;
+  this->poll = poll;
   pinMode(write_pin, OUTPUT);
   pinMode(read_pin, INPUT);
   print();

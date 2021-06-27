@@ -1,3 +1,13 @@
+## Home Control Arduino v5 (2021-06) ##
+
+* Poll for input devices is set via add command (sofware set, not hardcoded)
+* Switch and Button login input can be inverted via add command
+
+## Home Control Arduino v4 (2021-05) ##
+
+* ESP8266 support
+* Better network reset/handling
+
 ## Home Control Arduino v3 (2021-04) ##
 
 * Remember devices setup once, do not ask for devices setup on connection if devices are already setup

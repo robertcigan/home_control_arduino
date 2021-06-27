@@ -268,10 +268,10 @@ void HomeControl::parseCommand() {
   } else {
     if (doc["add"]) {
       if (doc["add"]["type"] == F("switch")) {
-        DeviceSwitch *device = new DeviceSwitch(doc["add"]["id"], doc["add"]["pin"]);
+        DeviceSwitch *device = new DeviceSwitch(doc["add"]["id"], doc["add"]["pin"], doc["add"]["poll"], doc["add"]["inverted"]);
         addDevice(*device);
       } else if (doc["add"]["type"] == F("button")) {
-        DeviceButton *device = new DeviceButton(doc["add"]["id"], doc["add"]["pin"]);
+        DeviceButton *device = new DeviceButton(doc["add"]["id"], doc["add"]["pin"], doc["add"]["poll"], doc["add"]["inverted"]);
         addDevice(*device);
       } else if (doc["add"]["type"] == F("relay")) {
         DeviceRelay *device = new DeviceRelay(doc["add"]["id"], doc["add"]["pin"]);
@@ -280,13 +280,13 @@ void HomeControl::parseCommand() {
         DevicePlayer *device = new DevicePlayer(doc["add"]["id"].as<uint32_t>());
         addDevice(*device);
       } else if (doc["add"]["type"] == F("distance")) {
-        DeviceDistance *device = new DeviceDistance(doc["add"]["id"], doc["add"]["write_pin"], doc["add"]["read_pin"]);
+        DeviceDistance *device = new DeviceDistance(doc["add"]["id"], doc["add"]["write_pin"], doc["add"]["read_pin"], doc["add"]["poll"]);
         addDevice(*device);
       } else if (doc["add"]["type"] == F("analog_input")) {
-        DeviceAnalogInput *device = new DeviceAnalogInput(doc["add"]["id"], doc["add"]["apin"]);
+        DeviceAnalogInput *device = new DeviceAnalogInput(doc["add"]["id"], doc["add"]["apin"], doc["add"]["poll"]);
         addDevice(*device);
       } else if (doc["add"]["type"] == F("ds18b20")) {
-        DeviceDS18B20 *device = new DeviceDS18B20(doc["add"]["id"], doc["add"]["pin"]);
+        DeviceDS18B20 *device = new DeviceDS18B20(doc["add"]["id"], doc["add"]["pin"], doc["add"]["poll"]);
         addDevice(*device);
       }
     } else if (doc["reset_devices"]) {

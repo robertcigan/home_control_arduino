@@ -1,10 +1,11 @@
 #include "DeviceSwitch.h"
 
-DeviceSwitch::DeviceSwitch(uint32_t device_id, uint8_t pin) {
+DeviceSwitch::DeviceSwitch(uint32_t device_id, uint8_t pin, uint32_t poll, bool inverted) {
   setup();
   this->pin = pin;
   this->device_id = device_id;
-  this->poll = 250;
+  this->poll = poll;
+  this->inverted = inverted;
   pinMode(pin, INPUT_PULLUP);
   print();
 }

@@ -1,6 +1,6 @@
 #include "DeviceAnalogInput.h"
 
-DeviceAnalogInput::DeviceAnalogInput(uint32_t device_id, uint8_t apin) {
+DeviceAnalogInput::DeviceAnalogInput(uint32_t device_id, uint8_t apin, uint32_t poll) {
   setup();
   this->apin = apin;
   this->device_id = device_id;

@@ -9,11 +9,15 @@ add:
   type: "switch"
   id: 
   pin:
+  poll:
+  inverted:
 
 add:
   type: "button"
   id:
-  pin:
+  pin:.
+  poll:
+  inverted:
 
 add:
   type: "relay"
@@ -30,15 +34,17 @@ add:
   id:
   write_pin:
   read_pin:
+  poll:
 
 add:
   type: "analog_input"
   id:
   apin:
+  poll:
 
 ping: true
 
-responds with { pong: true }
+responds with { pong: true, ssid: "xxx", signal_strength: 55, version: 4 }
 
 
 

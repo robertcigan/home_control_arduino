@@ -5,7 +5,7 @@
 
 class DeviceAnalogInput : public Device {
   public:
-    DeviceAnalogInput(uint32_t device_id, uint8_t apin);
+    DeviceAnalogInput(uint32_t device_id, uint8_t apin, uint32_t poll);
     bool is_output();
     void loop();
     void action(JsonObject doc);

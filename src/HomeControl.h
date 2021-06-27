@@ -31,7 +31,7 @@
 #define MAX_DEVICES                     40
 #define INPUT_BUFFER_SIZE               500
 #define SERIAL_INPUT_BUFFER_SIZE        50
-#define VERSION                         4
+#define VERSION                         5
 
 #define EEPROM_INITIALIZED_VALUE        255
 #define EEPROM_CONFIG_SET_OFFSET        0

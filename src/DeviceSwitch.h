@@ -5,7 +5,7 @@
 
 class DeviceSwitch : public Device {
   public:
-    DeviceSwitch(uint32_t device_id, uint8_t pin);
+    DeviceSwitch(uint32_t device_id, uint8_t pin, uint32_t poll, bool inverted);
     bool is_output();
     void loop();
     void action(JsonObject doc);
@@ -14,6 +14,7 @@ class DeviceSwitch : public Device {
     void print();
   private:
     bool value;
+    bool inverted;
 };
 
 #endif
