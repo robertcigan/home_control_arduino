@@ -1,3 +1,7 @@
+## Home Control Arduino v6 (2021-07) ##
+
+* Connection timeout 20s added because network client is not detecting connection properly
+
 ## Home Control Arduino v5 (2021-06) ##
 
 * Poll for input devices is set via add command (sofware set, not hardcoded)

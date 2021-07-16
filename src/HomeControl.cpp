@@ -4,7 +4,6 @@ HomeControl::HomeControl() {
   this->devicesSet = false;
   this->device_count = 0;
   this->last_request = millis();
-  this->autoreset = 0;
   this->mac[0] = 0xDE;
   this->mac[1] = 0xAA;
   this->mac[2] = 0xBB;
@@ -178,6 +177,7 @@ void HomeControl::connect() {
     Serial.print(F("Connecting to server: "));
     if (client.connect(server_ip, port)) {
       Serial.println(F("OK"));
+      last_request = millis();
       if (!devicesSet) {
         sendDevices();
       }
@@ -335,44 +335,16 @@ void HomeControl::sendDevices() {
   client.write("{\"send_devices\": true}\n");
 }
 
-// void HomeControl::loop() {
-//   readSerialInput();
-//   if (!client.connected()) {
-//     delay(2000);
-//     connect();
-//     loopDevices();
-//   } else {
-//     readInput();
-//     loopDevices();
-//     reportDevices();
-//   }
-//   timer.run();
-// }
-
 void HomeControl::loop() {
   readSerialInput();
-  if (!client.connected()) {
+  if (!client.connected() || connectionExpired()) {
     turnOnTestModeLED(0);
     delay(5000);
     connect();
   } else {
     readInput();
-    
     loopDevices();
-    
-    // if ther's value to report to server from devices, sent it
-    for(int i = 0; i < device_count; i++) {
-      if (devices[i]->report && devices[i]->value_initialized) {
-        Serial.print(F("Sending: "));
-        serializeJson(devices[i]->sendData(), Serial);
-        Serial.println();
-        serializeJson(devices[i]->sendData(), client);
-        client.write("\n");
-      }
-      if (!(devices[i]->is_output())) {
-        devices[i]->report = false;
-      }
-    }
+    reportDevices();
     //flush all data from buffer to network
     client.flush();
   }
@@ -473,9 +445,9 @@ void HomeControl::printConfiguration() {
   Serial.println(F("  save"));
 }
 
-// bool HomeControl::connectionExpired() {
-//   return (autoreset > 0 && ((last_request + autoreset * 1000L) < millis() || last_request > millis()));
-// }
+bool HomeControl::connectionExpired() {
+  return (CONNECTION_TIMEOUT > 0 && ((last_request + CONNECTION_TIMEOUT) < millis() || last_request > millis()));
+}
 
 void HomeControl::availableMemory() {
   #if defined(SHOW_MEMORY_IN_SERIAL)
