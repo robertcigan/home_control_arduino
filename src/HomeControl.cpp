@@ -288,6 +288,9 @@ void HomeControl::parseCommand() {
       } else if (doc["add"]["type"] == F("ds18b20")) {
         DeviceDS18B20 *device = new DeviceDS18B20(doc["add"]["id"], doc["add"]["pin"], doc["add"]["poll"]);
         addDevice(*device);
+      } else if (doc["add"]["type"] == F("pwm")) {
+        DevicePWM *device = new DevicePWM(doc["add"]["id"], doc["add"]["pin"]);
+        addDevice(*device);
       }
     } else if (doc["reset_devices"]) {
       deleteAllDevices();

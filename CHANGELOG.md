@@ -1,3 +1,7 @@
+## Home Control Arduino v7 (2021-12) ##
+
+* Added PWM output device
+
 ## Home Control Arduino v6 (2021-07) ##
 
 * Connection timeout 20s added because network client is not detecting connection properly
