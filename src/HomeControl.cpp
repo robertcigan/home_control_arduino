@@ -64,10 +64,8 @@ bool HomeControl::loadConfiguration() {
     
     #if defined(ESP8266) || defined(ESP32)
       for(int i = 0; i <= 19; i++) {
-        wifi_ssid_1[i] = EEPROM.read(i + EEPROM_WIFI_SSID_1_OFFSET);
-        wifi_ssid_2[i] = EEPROM.read(i + EEPROM_WIFI_SSID_2_OFFSET);
-        wifi_pass_1[i] = EEPROM.read(i + EEPROM_WIFI_PASS_1_OFFSET);
-        wifi_pass_2[i] = EEPROM.read(i + EEPROM_WIFI_PASS_2_OFFSET);
+        wifi_ssid[i] = EEPROM.read(i + EEPROM_WIFI_SSID_OFFSET);
+        wifi_pass[i] = EEPROM.read(i + EEPROM_WIFI_PASS_OFFSET);
       }
       for(int i = 0; i <= 3; i++) {
         gateway_ip[i] = EEPROM.read(i + EEPROM_GATEWAY_OFFSET);
@@ -111,10 +109,8 @@ bool HomeControl::saveConfiguration() {
       EEPROM.write(i + EEPROM_MAC_OFFSET, mac[i]);
     }
     for(int i = 0; i <= 19; i++) {
-      EEPROM.write(i + EEPROM_WIFI_SSID_1_OFFSET, wifi_ssid_1[i]);
-      EEPROM.write(i + EEPROM_WIFI_SSID_2_OFFSET, wifi_ssid_2[i]);
-      EEPROM.write(i + EEPROM_WIFI_PASS_1_OFFSET, wifi_pass_1[i]);
-      EEPROM.write(i + EEPROM_WIFI_PASS_2_OFFSET, wifi_pass_2[i]);
+      EEPROM.write(i + EEPROM_WIFI_SSID_OFFSET, wifi_ssid[i]);
+      EEPROM.write(i + EEPROM_WIFI_PASS_OFFSET, wifi_pass[i]);
     }
     for(int i = 0; i <= 3; i++) {
       EEPROM.write(i + EEPROM_GATEWAY_OFFSET, gateway_ip[i]);
@@ -131,14 +127,12 @@ bool HomeControl::saveConfiguration() {
 
 bool HomeControl::setupConnection() {
   #if defined(__AVR_ATmega2560__)
-    
-  #elif defined(__XTENSA__)
+  #elif defined(ESP8266) || defined(ESP32)
     #if defined(SHOW_VALUES_IN_SERIAL)
       Serial.setDebugOutput(true);
     #endif
     WiFi.persistent(false);
-    wifiMulti.addAP(wifi_ssid_1, wifi_pass_1);
-    wifiMulti.addAP(wifi_ssid_2, wifi_pass_2);
+    WiFi.mode(WIFI_STA);
   #endif
   setNetwork();
   return true;
@@ -164,9 +158,9 @@ void HomeControl::setNetwork() {
     } else if (Ethernet.linkStatus() == LinkOFF) {
       Serial.println(F("Link status: Off"));
     }
-  #elif defined(__XTENSA__)    
-    WiFi.mode(WIFI_STA);
+  #elif defined(ESP8266) || defined(ESP32)
     WiFi.config(client_ip, gateway_ip, gateway_ip);
+    WiFi.begin(wifi_ssid, wifi_pass);
   #endif
 }
 
@@ -184,10 +178,10 @@ void HomeControl::connect() {
     } else {
       Serial.println(F("failed"));
     }
-  #elif defined(__XTENSA__)
+  #elif defined(ESP8266) || defined(ESP32)
     client.stop();
     Serial.print(F("Connecting to WiFi: "));
-    if (wifiMulti.run(5000) == WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECTED) {
       Serial.print(F("WiFi connected: "));
       Serial.println(WiFi.SSID());
       Serial.print(F("Signal Strength: "));
@@ -274,7 +268,7 @@ void HomeControl::parseCommand() {
         DeviceButton *device = new DeviceButton(doc["add"]["id"], doc["add"]["pin"], doc["add"]["poll"], doc["add"]["inverted"]);
         addDevice(*device);
       } else if (doc["add"]["type"] == F("relay")) {
-        DeviceRelay *device = new DeviceRelay(doc["add"]["id"], doc["add"]["pin"]);
+        DeviceRelay *device = new DeviceRelay(doc["add"]["id"], doc["add"]["pin"], doc["add"]["default"]);
         addDevice(*device);
       } else if (doc["add"]["type"] == F("player")) {
         DevicePlayer *device = new DevicePlayer(doc["add"]["id"].as<uint32_t>());
@@ -289,7 +283,7 @@ void HomeControl::parseCommand() {
         DeviceDS18B20 *device = new DeviceDS18B20(doc["add"]["id"], doc["add"]["pin"], doc["add"]["poll"]);
         addDevice(*device);
       } else if (doc["add"]["type"] == F("pwm")) {
-        DevicePWM *device = new DevicePWM(doc["add"]["id"], doc["add"]["pin"]);
+        DevicePWM *device = new DevicePWM(doc["add"]["id"], doc["add"]["pin"], doc["add"]["default"]);
         addDevice(*device);
       }
     } else if (doc["reset_devices"]) {
@@ -424,14 +418,10 @@ void HomeControl::printConfiguration() {
   #if defined(ESP8266) || defined(ESP32)
     Serial.print(F("Gateway IP:  "));
     Serial.print(gateway_ip[0]); Serial.print("."); Serial.print(gateway_ip[1]); Serial.print(F(".")); Serial.print(gateway_ip[2]); Serial.print(F(".")); Serial.println(gateway_ip[3]);
-    Serial.print(F("WiFi 1 SSID: "));
-    Serial.println(wifi_ssid_1);
-    Serial.print(F("WiFi 1 PASS: "));
-    Serial.println(wifi_pass_1);
-    Serial.print(F("WiFi 2 SSID: "));
-    Serial.println(wifi_ssid_2);
-    Serial.print(F("WiFi 2 PASS: "));
-    Serial.println(wifi_pass_2);
+    Serial.print(F("WiFi SSID: "));
+    Serial.println(wifi_ssid);
+    Serial.print(F("WiFi PASS: "));
+    Serial.println(wifi_pass);
   #endif
 
   Serial.println(F("Available commands:"));
@@ -546,26 +536,15 @@ void HomeControl::parseSerialCommand() {
     printConfiguration();
   #if defined(ESP8266) || defined(ESP32)
     // *************** SET WIFI SSID 1 ADDRESS **************//
-    } else if (strstr(serialInData, "ssid1=")) {
+    } else if (strstr(serialInData, "ssid=")) {
       Serial.println(F("Setting Wifi 1 SSID \n"));
-      strcpy(wifi_ssid_1, &serialInData[6]);
+      strcpy(wifi_ssid, &serialInData[6]);
       printConfiguration();
     // *************** SET PASS 1 ADDRESS **************//
-    } else if (strstr(serialInData, "pass1=")) {
+    } else if (strstr(serialInData, "pass=")) {
       Serial.println(F("Setting Wifi 1 PASS \n"));
-      strcpy(wifi_pass_1, &serialInData[6]);
+      strcpy(wifi_pass, &serialInData[6]);
       printConfiguration();
-    // *************** SET WIFI SSID 2 ADDRESS **************//
-    } else if (strstr(serialInData, "ssid2=")) {
-      Serial.println(F("Setting Wifi 2 SSID \n"));
-      strcpy(wifi_ssid_2, &serialInData[6]);
-      printConfiguration();
-    // *************** SET PASS 2 ADDRESS **************//
-    } else if (strstr(serialInData, "pass2=")) {
-      Serial.println(F("Setting Wifi 2 PASS \n"));
-      strcpy(wifi_pass_2, &serialInData[6]);
-      printConfiguration();
-    
     // *************** SET SERVER IP **************//
     } else if (strstr(serialInData, "gateway_ip=")) {
       Serial.println(F("Setting Gateway IP\n"));

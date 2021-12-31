@@ -1,13 +1,13 @@
 #include "DeviceRelay.h"
 
-DeviceRelay::DeviceRelay(uint32_t device_id, uint8_t pin) {
+DeviceRelay::DeviceRelay(uint32_t device_id, uint8_t pin, bool default_value) {
   setup();
   this->pin = pin;
   this->device_id = device_id;
-  this->value = HIGH;
+  this->value = default_value;
   // initialize output
   pinMode(pin, OUTPUT);
-  digitalWrite(pin, HIGH);
+  digitalWrite(pin, this->value ? LOW : HIGH);
   print();
 }
 

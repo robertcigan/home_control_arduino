@@ -8,10 +8,8 @@
   #include <Ethernet.h>
 #elif defined(ESP8266)
   #include <ESP8266WiFi.h>
-  #include <ESP8266WiFiMulti.h>
 #elif defined(ESP32)
   #include <WiFi.h>
-  #include <WiFiMulti.h>
 #endif
 //#include <SD.h>
 #include <SimpleTimer.h>
@@ -42,11 +40,9 @@
 #define EEPROM_MAC_OFFSET               18
 
 #if defined(ESP8266) || defined(ESP32)
-  #define EEPROM_WIFI_SSID_1_OFFSET            24
-  #define EEPROM_WIFI_SSID_2_OFFSET            44
-  #define EEPROM_WIFI_PASS_1_OFFSET            64
-  #define EEPROM_WIFI_PASS_2_OFFSET            84
-  #define EEPROM_GATEWAY_OFFSET                104
+  #define EEPROM_WIFI_SSID_OFFSET            24
+  #define EEPROM_WIFI_PASS_OFFSET            64
+  #define EEPROM_GATEWAY_OFFSET              104
 #endif
 
 class HomeControl {
@@ -76,16 +72,15 @@ class HomeControl {
     #if defined(__AVR_ATmega2560__)
       EthernetClient client;
     #elif defined(ESP8266)
-      ESP8266WiFiMulti wifiMulti;
       WiFiClient client;
-      char wifi_ssid_1[20] = {'\0'};
-      char wifi_ssid_2[20] = {'\0'};
-      char wifi_pass_1[20] = {'\0'};
-      char wifi_pass_2[20] = {'\0'};
+      char wifi_ssid[20] = {'\0'};
+      char wifi_pass[20] = {'\0'};
       IPAddress gateway_ip;
     #elif defined(ESP32)
-      WiFiMulti wifiMulti;
       WiFiClient client;
+      char wifi_ssid[20] = {'\0'};
+      char wifi_pass[20] = {'\0'};
+      IPAddress gateway_ip;
     #endif
     #if defined(ESP8266) || defined(ESP32)
       float getRSSI();

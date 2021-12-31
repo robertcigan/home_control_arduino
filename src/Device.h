@@ -1,14 +1,14 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 #include <Arduino.h>
-#if defined(__AVR_ATmega2560__)
-  #include <Ethernet.h>
-#elif defined(ESP8266)
-  #include <ESP8266WiFi.h>
-  #include <ESP8266WiFiMulti.h>
-#elif defined(ESP32)
-  #include <WiFi.h>
-#endif
+// #if defined(__AVR_ATmega2560__)
+//   #include <Ethernet.h>
+// #elif defined(ESP8266)
+//   #include <ESP8266WiFi.h>
+//   #include <ESP8266WiFiMulti.h>
+// #elif defined(ESP32)
+//   #include <WiFi.h>
+// #endif
 #include <ArduinoJson.h>
 
 class Device {
@@ -37,5 +37,4 @@ class Device {
     static int PercentualPWMConversion(int input);
     static int PercentualServoConversion(int input);
 };
-
 #endif
