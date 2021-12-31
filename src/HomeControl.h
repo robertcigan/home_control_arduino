@@ -1,7 +1,7 @@
 #ifndef HOME_CONTROL_H
 #define HOME_CONTROL_H
 #define SHOW_MEMORY_IN_SERIAL
-#define SHOW_VALUES_IN_SERIAL
+//#define SHOW_VALUES_IN_SERIAL
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #if defined(__AVR_ATmega2560__)

@@ -181,6 +181,10 @@ void HomeControl::connect() {
   #elif defined(ESP8266) || defined(ESP32)
     client.stop();
     Serial.print(F("Connecting to WiFi: "));
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+    }
     if (WiFi.status() == WL_CONNECTED) {
       Serial.print(F("WiFi connected: "));
       Serial.println(WiFi.SSID());
@@ -191,6 +195,7 @@ void HomeControl::connect() {
       Serial.print(F(" "));
       if (client.connect(server_ip, port)) {
         Serial.println(F("OK"));
+          last_request = millis();
           if (!devicesSet) {
             sendDevices();
           }
@@ -333,7 +338,7 @@ void HomeControl::sendDevices() {
 
 void HomeControl::loop() {
   readSerialInput();
-  if (!client.connected() || connectionExpired()) {
+  if (!client.connected()) { // || connectionExpired()) {
     turnOnTestModeLED(0);
     delay(5000);
     connect();
@@ -409,18 +414,13 @@ void HomeControl::printConfiguration() {
       Serial.println(mac[i], HEX);
     }
   }
-  Serial.print(F("Client IP:  "));
-  Serial.print(client_ip[0]); Serial.print(F(".")); Serial.print(client_ip[1]); Serial.print(F(".")); Serial.print(client_ip[2]); Serial.print(F(".")); Serial.println(client_ip[3]);
-  Serial.print(F("Server IP:  "));
-  Serial.print(server_ip[0]); Serial.print("."); Serial.print(server_ip[1]); Serial.print(F(".")); Serial.print(server_ip[2]); Serial.print(F(".")); Serial.println(server_ip[3]);
+  Serial.print(F("Client IP:  ")); Serial.print(client_ip[0]); Serial.print(F(".")); Serial.print(client_ip[1]); Serial.print(F(".")); Serial.print(client_ip[2]); Serial.print(F(".")); Serial.println(client_ip[3]);
+  Serial.print(F("Server IP:  ")); Serial.print(server_ip[0]); Serial.print("."); Serial.print(server_ip[1]); Serial.print(F(".")); Serial.print(server_ip[2]); Serial.print(F(".")); Serial.println(server_ip[3]);
   Serial.print(F("Port:       ")); Serial.println(port);
   #if defined(ESP8266) || defined(ESP32)
-    Serial.print(F("Gateway IP:  "));
-    Serial.print(gateway_ip[0]); Serial.print("."); Serial.print(gateway_ip[1]); Serial.print(F(".")); Serial.print(gateway_ip[2]); Serial.print(F(".")); Serial.println(gateway_ip[3]);
-    Serial.print(F("WiFi SSID: "));
-    Serial.println(wifi_ssid);
-    Serial.print(F("WiFi PASS: "));
-    Serial.println(wifi_pass);
+    Serial.print(F("Gateway IP:  ")); Serial.print(gateway_ip[0]); Serial.print("."); Serial.print(gateway_ip[1]); Serial.print(F(".")); Serial.print(gateway_ip[2]); Serial.print(F(".")); Serial.println(gateway_ip[3]);
+    Serial.print(F("WiFi SSID:   ")); Serial.println(wifi_ssid);
+    Serial.print(F("WiFi PASS:   ")); Serial.println(wifi_pass);
   #endif
 
   Serial.println(F("Available commands:"));
@@ -429,16 +429,14 @@ void HomeControl::printConfiguration() {
   Serial.println(F("  mac=DE:AD:FF:FF:FF:FF"));
   #if defined(ESP8266) || defined(ESP32)
     Serial.println(F("  gateway_ip=123.123.123.123"));
-    Serial.println(F("  ssid1=some wifi name"));
-    Serial.println(F("  ssid2=some wifi name"));
-    Serial.println(F("  pass1=some wifi pass"));
-    Serial.println(F("  pass2=some wifi pass"));
+    Serial.println(F("  ssid=some wifi name"));
+    Serial.println(F("  pass=some wifi pass"));
   #endif
   Serial.println(F("  save"));
 }
 
 bool HomeControl::connectionExpired() {
-  return (CONNECTION_TIMEOUT > 0 && ((last_request + CONNECTION_TIMEOUT) < millis() || last_request > millis()));
+  return (CONNECTION_TIMEOUT > 0 && (millis() - last_request) > CONNECTION_TIMEOUT);
 }
 
 void HomeControl::availableMemory() {
@@ -536,13 +534,13 @@ void HomeControl::parseSerialCommand() {
   #if defined(ESP8266) || defined(ESP32)
     // *************** SET WIFI SSID 1 ADDRESS **************//
     } else if (strstr(serialInData, "ssid=")) {
-      Serial.println(F("Setting Wifi 1 SSID \n"));
-      strcpy(wifi_ssid, &serialInData[6]);
+      Serial.println(F("Setting Wifi SSID \n"));
+      strcpy(wifi_ssid, &serialInData[5]);
       printConfiguration();
     // *************** SET PASS 1 ADDRESS **************//
     } else if (strstr(serialInData, "pass=")) {
-      Serial.println(F("Setting Wifi 1 PASS \n"));
-      strcpy(wifi_pass, &serialInData[6]);
+      Serial.println(F("Setting Wifi PASS \n"));
+      strcpy(wifi_pass, &serialInData[5]);
       printConfiguration();
     // *************** SET SERVER IP **************//
     } else if (strstr(serialInData, "gateway_ip=")) {
