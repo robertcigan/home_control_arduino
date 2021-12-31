@@ -322,9 +322,8 @@ void HomeControl::pong() {
   doc["pong"] = true;
   doc["version"] = VERSION;
   #if defined(ESP8266) || defined(ESP32)
-    JsonObject wifi_object = doc.createNestedObject("wifi");
-    wifi_object["ssid"] = WiFi.SSID();
-    wifi_object["rssi"] = getRSSI();
+    doc["ssid"] = WiFi.SSID();
+    doc["rssi"] = getRSSI();
   #endif
   Serial.print(F("Sending: "));
   serializeJson(doc, Serial);
