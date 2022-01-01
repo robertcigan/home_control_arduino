@@ -1,7 +1,27 @@
 #ifndef HOME_CONTROL_H
 #define HOME_CONTROL_H
+
 #define SHOW_MEMORY_IN_SERIAL
 //#define SHOW_VALUES_IN_SERIAL
+
+#if defined(__AVR_ATmega2560__)
+  #define WITH_SERIAL
+  #define WITH_SERIAL_CONFIG
+  #define WITH_LED
+#endif
+
+#if defined(ARDUINO_ESP8266_ESP01)
+  #define WITH_WIFI
+  #define WITH_FILE_CONFIG
+#endif
+
+#if defined(ARDUINO_ESP8266_NODEMCU)
+  #define WITH_WIFI
+  #define WITH_SERIAL
+  #define WITH_SERIAL_CONFIG
+  #define WITH_LED
+#endif
+
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #if defined(__AVR_ATmega2560__)
@@ -11,7 +31,6 @@
 #elif defined(ESP32)
   #include <WiFi.h>
 #endif
-//#include <SD.h>
 #include <SimpleTimer.h>
 #include <EEPROM.h>
 #include <string.h>
@@ -39,7 +58,7 @@
 #define EEPROM_SERVER_IP_OFFSET         14
 #define EEPROM_MAC_OFFSET               18
 
-#if defined(ESP8266) || defined(ESP32)
+#if defined(WITH_WIFI)
   #define EEPROM_WIFI_SSID_OFFSET            24
   #define EEPROM_WIFI_PASS_OFFSET            64
   #define EEPROM_GATEWAY_OFFSET              104
@@ -71,18 +90,12 @@ class HomeControl {
     SimpleTimer timer;
     #if defined(__AVR_ATmega2560__)
       EthernetClient client;
-    #elif defined(ESP8266)
-      WiFiClient client;
-      char wifi_ssid[20] = {'\0'};
-      char wifi_pass[20] = {'\0'};
-      IPAddress gateway_ip;
-    #elif defined(ESP32)
-      WiFiClient client;
-      char wifi_ssid[20] = {'\0'};
-      char wifi_pass[20] = {'\0'};
-      IPAddress gateway_ip;
     #endif
-    #if defined(ESP8266) || defined(ESP32)
+    #if defined(WITH_WIFI)
+      WiFiClient client;
+      char wifi_ssid[20] = {'\0'};
+      char wifi_pass[20] = {'\0'};
+      IPAddress gateway_ip;
       float getRSSI();
     #endif
     bool setupConnection();
@@ -92,7 +105,9 @@ class HomeControl {
     void connect();
     bool loadConfiguration();
     bool saveConfiguration();
-    void printConfiguration();
+    #if defined(WITH_SERIAL)
+      void printConfiguration();
+    #endif
     void readInput();
     void resetInputData();
     void parseCommand();
@@ -101,15 +116,17 @@ class HomeControl {
     void loopDevices();
     void reportDevices();
 
-    void turnOnTestModeLED(int timeout);
-    static void turnOffTestModeLED();
+    #if defined(WITH_LED)
+      void turnOnTestModeLED(int timeout);
+      static void turnOffTestModeLED();
+    #endif
 
-    uint16_t serialInIndex;
-    char serialInData[SERIAL_INPUT_BUFFER_SIZE]; // Allocate some space for the incoming command string
-    void readSerialInput();
-    void resetSerialInputData();
-    void parseSerialCommand();
-    
+    #if defined(WITH_SERIAL_CONFIG)
+      uint16_t serialInIndex;
+      char serialInData[SERIAL_INPUT_BUFFER_SIZE]; // Allocate some space for the incoming command string
+      void readSerialInput();
+      void resetSerialInputData();
+      void parseSerialCommand();
+    #endif
  };
-
 #endif

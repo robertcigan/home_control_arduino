@@ -14,33 +14,43 @@ HomeControl::HomeControl() {
   this->server_ip = IPAddress(192, 168, 0, 0);
   this->port = 7777;
 
-  #if defined(ESP8266) || defined(ESP32)
+  #if defined(WITH_WIFI)
     this->gateway_ip = IPAddress(192, 168, 0, 0);
   #endif
   
   this->inIndex = 0;
   this->inStatus = 0; // 0 - wait, 1 - command
-
-  this->serialInIndex = 0; 
+  #if defined(WITH_SERIAL_CONFIG)
+    this->serialInIndex = 0;
+  #endif
 }
 
 bool HomeControl::setup() {
+  #if defined(WITH_LED)
+    pinMode(LED_BUILTIN, OUTPUT); //TEST LED
+  #endif
   #if defined(__AVR_ATmega2560__)
-    pinMode(LED_BUILTIN, OUTPUT); //TEST LED
-    pinMode(10, OUTPUT);   // set the Ethernet SS pin as an output (necessary!)
+    ppinMode(10, OUTPUT);   // set the Ethernet SS pin as an output (necessary!)
     digitalWrite(10, HIGH);
-  #elif defined(ESP8266) || defined(ESP32)
-    pinMode(LED_BUILTIN, OUTPUT); //TEST LED
-    EEPROM.begin(512);
+  #endif
+    
+  #if defined(ESP8266) || defined(ESP32)
+    #if defined(WITH_SERIAL_CONFIG)
+      EEPROM.begin(512);
+    #endif
   #endif
   
   if (loadConfiguration()) {
-    Serial.println(F("Configuration successfull!"));
+    #if defined(WITH_SERIAL)
+      Serial.println(F("Configuration successfull!"));
+    #endif
   } else {
     return false; 
   }
   if (setupConnection()) {
-    Serial.println(F("Network setup successfull!"));
+    #if defined(WITH_SERIAL)
+      Serial.println(F("Network setup successfull!"));
+    #endif
   } else {
     return false; 
   }
@@ -49,89 +59,98 @@ bool HomeControl::setup() {
 }
 
 bool HomeControl::loadConfiguration() {
-  if (EEPROM.read(EEPROM_CONFIG_SET_OFFSET) == EEPROM_INITIALIZED_VALUE && 
-    EEPROM.read(EEPROM_CONFIG_SET_OFFSET + 1) == EEPROM_INITIALIZED_VALUE) {
-      
-    for(int i = 0; i <= 3; i++) {
-    client_ip[i] = EEPROM.read(i + EEPROM_CLIENT_IP_OFFSET);
-    }
-    for(int i = 0; i <= 3; i++) {
-      server_ip[i] = EEPROM.read(i + EEPROM_SERVER_IP_OFFSET);
-    }
-    for(int i = 0; i <= 5; i++) {
-      mac[i] = EEPROM.read(i + EEPROM_MAC_OFFSET);
-    }
-    
-    #if defined(ESP8266) || defined(ESP32)
-      for(int i = 0; i <= 19; i++) {
-        wifi_ssid[i] = EEPROM.read(i + EEPROM_WIFI_SSID_OFFSET);
-        wifi_pass[i] = EEPROM.read(i + EEPROM_WIFI_PASS_OFFSET);
+  #if defined(WITH_FILE_CONFIG)
+    // implement load config from file
+  #elif defined(WITH_SERIAL_CONFIG)
+    if (EEPROM.read(EEPROM_CONFIG_SET_OFFSET) == EEPROM_INITIALIZED_VALUE && 
+      EEPROM.read(EEPROM_CONFIG_SET_OFFSET + 1) == EEPROM_INITIALIZED_VALUE) {
+        
+      for(int i = 0; i <= 3; i++) {
+      client_ip[i] = EEPROM.read(i + EEPROM_CLIENT_IP_OFFSET);
       }
       for(int i = 0; i <= 3; i++) {
-        gateway_ip[i] = EEPROM.read(i + EEPROM_GATEWAY_OFFSET);
+        server_ip[i] = EEPROM.read(i + EEPROM_SERVER_IP_OFFSET);
       }
-    #endif
-
-  } else {
-    Serial.println("EEPROM not initialized, storing default values now.");
-    #if defined(__AVR_ATmega2560__)
-      EEPROM.update(EEPROM_CONFIG_SET_OFFSET, EEPROM_INITIALIZED_VALUE);
-      EEPROM.update(EEPROM_CONFIG_SET_OFFSET + 1, EEPROM_INITIALIZED_VALUE);
-    #elif defined(__XTENSA__)
-      EEPROM.write(EEPROM_CONFIG_SET_OFFSET, EEPROM_INITIALIZED_VALUE);
-      EEPROM.write(EEPROM_CONFIG_SET_OFFSET + 1, EEPROM_INITIALIZED_VALUE);
-    #endif
-    saveConfiguration();
-  }
-  printConfiguration();
+      for(int i = 0; i <= 5; i++) {
+        mac[i] = EEPROM.read(i + EEPROM_MAC_OFFSET);
+      }
+      
+      #if defined(WITH_WIFI)
+        for(int i = 0; i <= 19; i++) {
+          wifi_ssid[i] = EEPROM.read(i + EEPROM_WIFI_SSID_OFFSET);
+          wifi_pass[i] = EEPROM.read(i + EEPROM_WIFI_PASS_OFFSET);
+        }
+        for(int i = 0; i <= 3; i++) {
+          gateway_ip[i] = EEPROM.read(i + EEPROM_GATEWAY_OFFSET);
+        }
+      #endif
+    } else {
+      Serial.println("EEPROM not initialized, storing default values now.");
+      #if defined(__AVR_ATmega2560__)
+        EEPROM.update(EEPROM_CONFIG_SET_OFFSET, EEPROM_INITIALIZED_VALUE);
+        EEPROM.update(EEPROM_CONFIG_SET_OFFSET + 1, EEPROM_INITIALIZED_VALUE);
+      #elif defined(ESP8266) || defined(ESP32)
+        EEPROM.write(EEPROM_CONFIG_SET_OFFSET, EEPROM_INITIALIZED_VALUE);
+        EEPROM.write(EEPROM_CONFIG_SET_OFFSET + 1, EEPROM_INITIALIZED_VALUE);
+      #endif
+      saveConfiguration();
+    }
+  #endif
+  #if defined(WITH_SERIAL)
+    printConfiguration();
+  #endif
   return true;
 }
 
 bool HomeControl::saveConfiguration() {
-  #if defined(__AVR_ATmega2560__)
-    for(int i = 0; i <= 3; i++) {
-      EEPROM.update(i + EEPROM_CLIENT_IP_OFFSET, client_ip[i]);
-    }
-    for(int i = 0; i <= 3; i++) {
-      EEPROM.update(i + EEPROM_SERVER_IP_OFFSET, server_ip[i]);
-    }
-    for(int i = 0; i <= 5; i++) {
-      EEPROM.update(i + EEPROM_MAC_OFFSET, mac[i]);
-    }
-  #elif defined(ESP8266) || defined(ESP32)
-    for(int i = 0; i <= 3; i++) {
-      EEPROM.write(i + EEPROM_CLIENT_IP_OFFSET, client_ip[i]);
-    }
-    for(int i = 0; i <= 3; i++) {
-      EEPROM.write(i + EEPROM_SERVER_IP_OFFSET, server_ip[i]);
-    }
-    for(int i = 0; i <= 5; i++) {
-      EEPROM.write(i + EEPROM_MAC_OFFSET, mac[i]);
-    }
-    for(int i = 0; i <= 19; i++) {
-      EEPROM.write(i + EEPROM_WIFI_SSID_OFFSET, wifi_ssid[i]);
-      EEPROM.write(i + EEPROM_WIFI_PASS_OFFSET, wifi_pass[i]);
-    }
-    for(int i = 0; i <= 3; i++) {
-      EEPROM.write(i + EEPROM_GATEWAY_OFFSET, gateway_ip[i]);
-    }
+  #if defined(WITH_SERIAL_CONFIG)
+    #if defined(__AVR_ATmega2560__)
+      for(int i = 0; i <= 3; i++) {
+        EEPROM.update(i + EEPROM_CLIENT_IP_OFFSET, client_ip[i]);
+      }
+      for(int i = 0; i <= 3; i++) {
+        EEPROM.update(i + EEPROM_SERVER_IP_OFFSET, server_ip[i]);
+      }
+      for(int i = 0; i <= 5; i++) {
+        EEPROM.update(i + EEPROM_MAC_OFFSET, mac[i]);
+      }
+    #elif defined(WITH_WIFI)
+      for(int i = 0; i <= 3; i++) {
+        EEPROM.write(i + EEPROM_CLIENT_IP_OFFSET, client_ip[i]);
+      }
+      for(int i = 0; i <= 3; i++) {
+        EEPROM.write(i + EEPROM_SERVER_IP_OFFSET, server_ip[i]);
+      }
+      for(int i = 0; i <= 5; i++) {
+        EEPROM.write(i + EEPROM_MAC_OFFSET, mac[i]);
+      }
+      for(int i = 0; i <= 19; i++) {
+        EEPROM.write(i + EEPROM_WIFI_SSID_OFFSET, wifi_ssid[i]);
+        EEPROM.write(i + EEPROM_WIFI_PASS_OFFSET, wifi_pass[i]);
+      }
+      for(int i = 0; i <= 3; i++) {
+        EEPROM.write(i + EEPROM_GATEWAY_OFFSET, gateway_ip[i]);
+      }
 
-    if (EEPROM.commit()) {
-      Serial.println(F("EEPROM successfully committed"));
-    } else {
-      Serial.println(F("ERROR! EEPROM commit failed"));
-    }
+      if (EEPROM.commit()) {
+        #if defined(WITH_SERIAL)
+          Serial.println(F("EEPROM successfully committed"));
+        #endif
+      } else {
+        #if defined(WITH_SERIAL)
+          Serial.println(F("ERROR! EEPROM commit failed"));
+        #endif
+      }
+    #endif
   #endif
   return true;
 }
 
 bool HomeControl::setupConnection() {
-  #if defined(__AVR_ATmega2560__)
-  #elif defined(ESP8266) || defined(ESP32)
-    #if defined(SHOW_VALUES_IN_SERIAL)
+  #if defined(WITH_WIFI)
+    #if defined(WITH_SERIAL) && defined(SHOW_VALUES_IN_SERIAL)
       Serial.setDebugOutput(true);
     #endif
-    WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
   #endif
   setNetwork();
@@ -142,23 +161,37 @@ void HomeControl::setNetwork() {
   #if defined(__AVR_ATmega2560__)
     Ethernet.begin(mac, client_ip);
     if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-      Serial.println(F("Ethernet shield was not found."));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("Ethernet shield was not found."));
+      #endif
       return false;
     } else if (Ethernet.hardwareStatus() == EthernetW5100) {
-      Serial.println(F("W5100 Ethernet controller detected."));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("W5100 Ethernet controller detected."));
+      #endif
     } else if (Ethernet.hardwareStatus() == EthernetW5200) {
-      Serial.println(F("W5200 Ethernet controller detected."));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("W5200 Ethernet controller detected."));
+      #endif
     } else if (Ethernet.hardwareStatus() == EthernetW5500) {
-      Serial.println(F("W5500 Ethernet controller detected."));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("W5500 Ethernet controller detected."));
+      #endif
     }
     if (Ethernet.linkStatus() == Unknown) {
-      Serial.println(F("Link status unknown. Link status detection is only available with W5200 and W5500."));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("Link status unknown. Link status detection is only available with W5200 and W5500."));
+      #endif
     } else if (Ethernet.linkStatus() == LinkON) {
-      Serial.println(F("Link status: On"));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("Link status: On"));
+      #endif
     } else if (Ethernet.linkStatus() == LinkOFF) {
-      Serial.println(F("Link status: Off"));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("Link status: Off"));
+      #endif
     }
-  #elif defined(ESP8266) || defined(ESP32)
+  #elif defined(WITH_WIFI)
     WiFi.config(client_ip, gateway_ip, gateway_ip);
     WiFi.begin(wifi_ssid, wifi_pass);
   #endif
@@ -168,49 +201,68 @@ void HomeControl::connect() {
   setNetwork(); // set network again if W5500 looses data due to rest or so
   #if defined(__AVR_ATmega2560__)
     client.stop();
-    Serial.print(F("Connecting to server: "));
+    #if defined(WITH_SERIAL)
+      Serial.print(F("Connecting to server: "));
+    #endif
     if (client.connect(server_ip, port)) {
-      Serial.println(F("OK"));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("OK"));
+      #endif
       last_request = millis();
       if (!devicesSet) {
         sendDevices();
       }
     } else {
-      Serial.println(F("failed"));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("failed"));
+      #endif
     }
-  #elif defined(ESP8266) || defined(ESP32)
+  #elif defined(WITH_WIFI)
     client.stop();
-    Serial.print(F("Connecting to WiFi: "));
-    while (WiFi.status() != WL_CONNECTED) {
+    #if defined(WITH_SERIAL)
+      Serial.print(F("Connecting to WiFi: "));
+    #endif
+    uint32_t started = millis();
+    while (WiFi.status() != WL_CONNECTED && (millis() - started) < 5000 ) {
       delay(500);
       Serial.print(".");
     }
     if (WiFi.status() == WL_CONNECTED) {
-      Serial.print(F("WiFi connected: "));
-      Serial.println(WiFi.SSID());
-      Serial.print(F("Signal Strength: "));
-      Serial.print(getRSSI());
-      Serial.println(F("%"));
-      Serial.print(F("Connecting to server: "));
-      Serial.print(F(" "));
+      #if defined(WITH_SERIAL)
+        Serial.print(F("WiFi connected: "));
+        Serial.println(WiFi.SSID());
+        Serial.print(F("Signal Strength: "));
+        Serial.print(getRSSI());
+        Serial.println(F("%"));
+        Serial.print(F("Connecting to server: "));
+        Serial.print(F(" "));
+      #endif
       if (client.connect(server_ip, port)) {
-        Serial.println(F("OK"));
-          last_request = millis();
-          if (!devicesSet) {
-            sendDevices();
-          }
+        #if defined(WITH_SERIAL)
+          Serial.println(F("OK"));
+        #endif
+        last_request = millis();
+        if (!devicesSet) {
+          sendDevices();
+        }
       } else {
-        Serial.println(F("failed"));
+        #if defined(WITH_SERIAL)
+          Serial.println(F("failed"));
+        #endif
       }
     } else {
-      Serial.println(F("WiFi not connected!"));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("WiFi not connected!"));
+      #endif
     }
   #endif
 }
 
 void HomeControl::addDevice(Device &device) {
   if (device_count >= MAX_DEVICES) {
-    Serial.print(F("Maximum devices reached "));Serial.print(MAX_DEVICES);
+    #if defined(WITH_SERIAL)
+      Serial.print(F("Maximum devices reached "));Serial.print(MAX_DEVICES);
+    #endif
   } else {
     devices[device_count] = &device;
     device_count = device_count + 1;
@@ -236,7 +288,9 @@ void HomeControl::readInput() {
       inChar = client.read(); // Read a charact
       if (inChar == '\n') {
         inData[inIndex] = '\0';
-        Serial.print(F("Received:"));Serial.println(inData);
+        #if defined(WITH_SERIAL)
+          Serial.print(F("Received:"));Serial.println(inData);
+        #endif
         parseCommand();
         resetInputData();
         availableMemory();
@@ -246,7 +300,9 @@ void HomeControl::readInput() {
         inIndex++; // Increment where to write next
       }
     } else {
-      Serial.println(F("Input data overflow!"));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("Input data overflow!"));
+      #endif
       resetInputData();
     }
   }
@@ -263,7 +319,9 @@ void HomeControl::parseCommand() {
   DynamicJsonDocument doc(INPUT_BUFFER_SIZE);
   DeserializationError err = deserializeJson(doc, inData);
   if (err) {
-    Serial.print(F("deserializeJson() failed with code ")); Serial.println(err.c_str());
+    #if defined(WITH_SERIAL)
+      Serial.print(F("deserializeJson() failed with code ")); Serial.println(err.c_str());
+    #endif
   } else {
     if (doc["add"]) {
       if (doc["add"]["type"] == F("switch")) {
@@ -311,7 +369,9 @@ void HomeControl::parseCommand() {
         }
       }
     } else {
-      Serial.println(F("Unknown command"));
+      #if defined(WITH_SERIAL)
+        Serial.println(F("Unknown command"));
+      #endif
     }
   }
 }
@@ -320,16 +380,20 @@ void HomeControl::pong() {
   DynamicJsonDocument doc(200);
   doc["pong"] = true;
   doc["version"] = VERSION;
-  #if defined(ESP8266) || defined(ESP32)
+  #if defined(WITH_WIFI)
     doc["ssid"] = WiFi.SSID();
     doc["rssi"] = getRSSI();
   #endif
-  Serial.print(F("Sending: "));
-  serializeJson(doc, Serial);
-  Serial.print("\n");
+  #if defined(WITH_SERIAL)
+    Serial.print(F("Sending: "));
+    serializeJson(doc, Serial);
+    Serial.print("\n");
+  #endif
   serializeJson(doc, client);
   client.write("\n");
-  turnOnTestModeLED(250);
+  #if defined(WITH_LED)
+    turnOnTestModeLED(250);
+  #endif
 }
 
 void HomeControl::sendDevices() {
@@ -337,9 +401,13 @@ void HomeControl::sendDevices() {
 }
 
 void HomeControl::loop() {
-  readSerialInput();
-  if (!client.connected()) { // || connectionExpired()) {
-    turnOnTestModeLED(0);
+  #if defined(WITH_SERIAL_CONFIG)
+    readSerialInput();
+  #endif
+  if (!client.connected() || connectionExpired()) {
+    #if defined(WITH_LED)
+      turnOnTestModeLED(0);
+    #endif
     delay(5000);
     connect();
   } else {
@@ -365,9 +433,11 @@ void HomeControl::reportDevices() {
   // if there is value to report to server from devices, sent it
   for(int i = 0; i < device_count; i++) {
     if (devices[i]->report && devices[i]->value_initialized) {
-      Serial.print(F("Sending: "));
-      serializeJson(devices[i]->sendData(), Serial);
-      Serial.println();
+      #if defined(WITH_SERIAL)
+        Serial.print(F("Sending: "));
+        serializeJson(devices[i]->sendData(), Serial);
+        Serial.println();
+      #endif
       serializeJson(devices[i]->sendData(), client);
       client.write("\n");
     }
@@ -380,60 +450,65 @@ void HomeControl::reportDevices() {
 }
 
 /***** HELP FUNCTIONS ******/
-
-void HomeControl::turnOnTestModeLED(int timeout) {
-  #if defined(__AVR_ATmega2560__)
-    digitalWrite(LED_BUILTIN, HIGH);
-  #elif defined(ESP8266) || defined(ESP32)
-    digitalWrite(LED_BUILTIN, LOW);
-  #endif
-  if (timeout > 0) {
-    timer.setTimeout(timeout, turnOffTestModeLED);
-  }
-}
-
-void HomeControl::turnOffTestModeLED() {
-  #if defined(__AVR_ATmega2560__)
-    digitalWrite(LED_BUILTIN, LOW);
-  #elif defined(ESP8266) || defined(ESP32)
-    digitalWrite(LED_BUILTIN, HIGH);
-  #endif
-}
-
-void HomeControl::printConfiguration() {
-  Serial.println(F("HomeControl "));
-  Serial.print(F("Version: ")); Serial.println(VERSION);
-  Serial.println(F("Network settings"));
-  Serial.println(F("----------------"));
-  Serial.print(F("MAC:"));
-  for(int i = 0; i < 6; i++) {
-    if (i != 5) {
-      Serial.print(mac[i], HEX);
-      Serial.print(":");
-    } else {
-      Serial.println(mac[i], HEX);
+#if defined(WITH_LED)
+  void HomeControl::turnOnTestModeLED(int timeout) {
+    #if defined(__AVR_ATmega2560__)
+      digitalWrite(LED_BUILTIN, HIGH);
+    #else
+      digitalWrite(LED_BUILTIN, LOW);
+    #endif
+    if (timeout > 0) {
+      timer.setTimeout(timeout, turnOffTestModeLED);
     }
   }
-  Serial.print(F("Client IP:  ")); Serial.print(client_ip[0]); Serial.print(F(".")); Serial.print(client_ip[1]); Serial.print(F(".")); Serial.print(client_ip[2]); Serial.print(F(".")); Serial.println(client_ip[3]);
-  Serial.print(F("Server IP:  ")); Serial.print(server_ip[0]); Serial.print("."); Serial.print(server_ip[1]); Serial.print(F(".")); Serial.print(server_ip[2]); Serial.print(F(".")); Serial.println(server_ip[3]);
-  Serial.print(F("Port:       ")); Serial.println(port);
-  #if defined(ESP8266) || defined(ESP32)
-    Serial.print(F("Gateway IP:  ")); Serial.print(gateway_ip[0]); Serial.print("."); Serial.print(gateway_ip[1]); Serial.print(F(".")); Serial.print(gateway_ip[2]); Serial.print(F(".")); Serial.println(gateway_ip[3]);
-    Serial.print(F("WiFi SSID:   ")); Serial.println(wifi_ssid);
-    Serial.print(F("WiFi PASS:   ")); Serial.println(wifi_pass);
-  #endif
 
-  Serial.println(F("Available commands:"));
-  Serial.println(F("  server_ip=123.123.123.123"));
-  Serial.println(F("  client_ip=123.123.123.123"));
-  Serial.println(F("  mac=DE:AD:FF:FF:FF:FF"));
-  #if defined(ESP8266) || defined(ESP32)
-    Serial.println(F("  gateway_ip=123.123.123.123"));
-    Serial.println(F("  ssid=some wifi name"));
-    Serial.println(F("  pass=some wifi pass"));
-  #endif
-  Serial.println(F("  save"));
-}
+  void HomeControl::turnOffTestModeLED() {
+    #if defined(__AVR_ATmega2560__)
+      digitalWrite(LED_BUILTIN, LOW);
+    #else
+      digitalWrite(LED_BUILTIN, HIGH);
+    #endif
+  }
+#endif
+
+#if defined(WITH_SERIAL)
+  void HomeControl::printConfiguration() {
+    Serial.println(F("HomeControl "));
+    Serial.print(F("Version: ")); Serial.println(VERSION);
+    Serial.println(F("Network settings"));
+    Serial.println(F("----------------"));
+    Serial.print(F("MAC:"));
+    for(int i = 0; i < 6; i++) {
+      if (i != 5) {
+        Serial.print(mac[i], HEX);
+        Serial.print(":");
+      } else {
+        Serial.println(mac[i], HEX);
+      }
+    }
+    Serial.print(F("Client IP:  ")); Serial.print(client_ip[0]); Serial.print(F(".")); Serial.print(client_ip[1]); Serial.print(F(".")); Serial.print(client_ip[2]); Serial.print(F(".")); Serial.println(client_ip[3]);
+    Serial.print(F("Server IP:  ")); Serial.print(server_ip[0]); Serial.print("."); Serial.print(server_ip[1]); Serial.print(F(".")); Serial.print(server_ip[2]); Serial.print(F(".")); Serial.println(server_ip[3]);
+    Serial.print(F("Port:       ")); Serial.println(port);
+    #if defined(WITH_WIFI)
+      Serial.print(F("Gateway IP:  ")); Serial.print(gateway_ip[0]); Serial.print("."); Serial.print(gateway_ip[1]); Serial.print(F(".")); Serial.print(gateway_ip[2]); Serial.print(F(".")); Serial.println(gateway_ip[3]);
+      Serial.print(F("WiFi SSID:   ")); Serial.println(wifi_ssid);
+      Serial.print(F("WiFi PASS:   ")); Serial.println(wifi_pass);
+    #endif
+    #if defined(WITH_SERIAL_CONFIG)
+      Serial.println(F("Available commands:"));
+      Serial.println(F("  server_ip=123.123.123.123"));
+      Serial.println(F("  client_ip=123.123.123.123"));
+      Serial.println(F("  mac=DE:AD:FF:FF:FF:FF"));
+      #if defined(WITH_WIFI)
+        Serial.println(F("  gateway_ip=123.123.123.123"));
+        Serial.println(F("  ssid=some wifi name"));
+        Serial.println(F("  pass=some wifi pass"));
+      #endif
+      Serial.println(F("  save"));
+    #endif
+  }
+#endif
+
 
 bool HomeControl::connectionExpired() {
   return (CONNECTION_TIMEOUT > 0 && (millis() - last_request) > CONNECTION_TIMEOUT);
@@ -452,116 +527,118 @@ void HomeControl::availableMemory() {
   #endif
 }
 
-#if defined(ESP8266) || defined(ESP32)
+#if defined(WITH_WIFI)
   float HomeControl::getRSSI() {
     float rssi = WiFi.RSSI();
     rssi = isnan(rssi) ? -100.0 : rssi;
     return min(max(2 * (rssi + 100.0), 0.0), 100.0);
   }
 #endif
- 
-void HomeControl::readSerialInput() {
-  char inChar=-1;
-  while(Serial.available() > 0) {
-    if(serialInIndex < SERIAL_INPUT_BUFFER_SIZE) {
-      inChar = Serial.read(); // Read a character
-      if (inChar == '\n') {
-        serialInData[serialInIndex] = '\0';
-        Serial.print(F("Serial command:"));Serial.println(serialInData);
-        parseSerialCommand();
-        resetSerialInputData();
-        return;
+
+#if defined(WITH_SERIAL_CONFIG)
+  void HomeControl::readSerialInput() {
+    char inChar=-1;
+    while(Serial.available() > 0) {
+      if(serialInIndex < SERIAL_INPUT_BUFFER_SIZE) {
+        inChar = Serial.read(); // Read a character
+        if (inChar == '\n') {
+          serialInData[serialInIndex] = '\0';
+          Serial.print(F("Serial command:"));Serial.println(serialInData);
+          parseSerialCommand();
+          resetSerialInputData();
+          return;
+        } else {
+          serialInData[serialInIndex] = inChar; // Store it
+          serialInIndex++; // Increment where to write next
+        }
       } else {
-        serialInData[serialInIndex] = inChar; // Store it
-        serialInIndex++; // Increment where to write next
+        Serial.println(F("Input data too large!"));
+        resetSerialInputData();
       }
-    } else {
-      Serial.println(F("Input data too large!"));
-      resetSerialInputData();
     }
   }
-}
 
-void HomeControl::resetSerialInputData() {
-  serialInIndex = 0;
-  return;
-}
+  void HomeControl::resetSerialInputData() {
+    serialInIndex = 0;
+    return;
+  }
 
-void HomeControl::parseSerialCommand() {
-  // *************** SET CLIENT IP **************//
-  if (strstr(serialInData, "client_ip=")) {
-    Serial.println(F("Setting Client IP\n"));
-    char *token;
-    token = strtok(&serialInData[10], ".");
-    client_ip[0] = atoi(token);
-    token = strtok(NULL, ".");
-    client_ip[1] = atoi(token);
-    token = strtok(NULL, ".");
-    client_ip[2] = atoi(token);    
-    token = strtok(NULL, ".");
-    client_ip[3] = atoi(token);
-    printConfiguration();
-  // *************** SET SERVER IP **************//
-  } else if (strstr(serialInData, "server_ip=")) {
-    Serial.println(F("Setting Server IP\n"));
-    char *token;
-    token = strtok(&serialInData[10], ".");
-    server_ip[0] = atoi(token);
-    token = strtok(NULL, ".");
-    server_ip[1] = atoi(token);
-    token = strtok(NULL, ".");
-    server_ip[2] = atoi(token);    
-    token = strtok(NULL, ".");
-    server_ip[3] = atoi(token);
-    printConfiguration();
-  // *************** SET MAC ADDRESS **************//
-  } else if (strstr(serialInData, "mac=")) {
-    Serial.println(F("Setting Server IP\n"));
-    char *token;
-    token = strtok(&serialInData[4], ":");
-    mac[0] = strtoul(token, NULL, 16);
-    token = strtok(NULL, ":");
-    mac[1] = strtoul(token, NULL, 16);
-    token = strtok(NULL, ":");
-    mac[2] = strtoul(token, NULL, 16);
-    token = strtok(NULL, ":");
-    mac[3] = strtoul(token, NULL, 16);
-    token = strtok(NULL, ":");
-    mac[4] = strtoul(token, NULL, 16);
-    token = strtok(NULL, ":");
-    mac[5] = strtoul(token, NULL, 16);
-    printConfiguration();
-  #if defined(ESP8266) || defined(ESP32)
-    // *************** SET WIFI SSID 1 ADDRESS **************//
-    } else if (strstr(serialInData, "ssid=")) {
-      Serial.println(F("Setting Wifi SSID \n"));
-      strcpy(wifi_ssid, &serialInData[5]);
-      printConfiguration();
-    // *************** SET PASS 1 ADDRESS **************//
-    } else if (strstr(serialInData, "pass=")) {
-      Serial.println(F("Setting Wifi PASS \n"));
-      strcpy(wifi_pass, &serialInData[5]);
+  void HomeControl::parseSerialCommand() {
+    // *************** SET CLIENT IP **************//
+    if (strstr(serialInData, "client_ip=")) {
+      Serial.println(F("Setting Client IP\n"));
+      char *token;
+      token = strtok(&serialInData[10], ".");
+      client_ip[0] = atoi(token);
+      token = strtok(NULL, ".");
+      client_ip[1] = atoi(token);
+      token = strtok(NULL, ".");
+      client_ip[2] = atoi(token);    
+      token = strtok(NULL, ".");
+      client_ip[3] = atoi(token);
       printConfiguration();
     // *************** SET SERVER IP **************//
-    } else if (strstr(serialInData, "gateway_ip=")) {
-      Serial.println(F("Setting Gateway IP\n"));
+    } else if (strstr(serialInData, "server_ip=")) {
+      Serial.println(F("Setting Server IP\n"));
       char *token;
-      token = strtok(&serialInData[11], ".");
-      gateway_ip[0] = atoi(token);
+      token = strtok(&serialInData[10], ".");
+      server_ip[0] = atoi(token);
       token = strtok(NULL, ".");
-      gateway_ip[1] = atoi(token);
+      server_ip[1] = atoi(token);
       token = strtok(NULL, ".");
-      gateway_ip[2] = atoi(token);    
+      server_ip[2] = atoi(token);    
       token = strtok(NULL, ".");
-      gateway_ip[3] = atoi(token);
+      server_ip[3] = atoi(token);
       printConfiguration();
-  #endif
-  // *************** STORE CONFIGURATION **************//
-  } else if (strstr(serialInData, "save")) {
-    Serial.println(F("Saving configuration to EEPROM\n"));
-    saveConfiguration();
-    printConfiguration();     
-  } else {
-    Serial.println(F("Unknown command"));
+    // *************** SET MAC ADDRESS **************//
+    } else if (strstr(serialInData, "mac=")) {
+      Serial.println(F("Setting Server IP\n"));
+      char *token;
+      token = strtok(&serialInData[4], ":");
+      mac[0] = strtoul(token, NULL, 16);
+      token = strtok(NULL, ":");
+      mac[1] = strtoul(token, NULL, 16);
+      token = strtok(NULL, ":");
+      mac[2] = strtoul(token, NULL, 16);
+      token = strtok(NULL, ":");
+      mac[3] = strtoul(token, NULL, 16);
+      token = strtok(NULL, ":");
+      mac[4] = strtoul(token, NULL, 16);
+      token = strtok(NULL, ":");
+      mac[5] = strtoul(token, NULL, 16);
+      printConfiguration();
+    #if defined(ESP8266) || defined(ESP32)
+      // *************** SET WIFI SSID 1 ADDRESS **************//
+      } else if (strstr(serialInData, "ssid=")) {
+        Serial.println(F("Setting Wifi SSID \n"));
+        strcpy(wifi_ssid, &serialInData[5]);
+        printConfiguration();
+      // *************** SET PASS 1 ADDRESS **************//
+      } else if (strstr(serialInData, "pass=")) {
+        Serial.println(F("Setting Wifi PASS \n"));
+        strcpy(wifi_pass, &serialInData[5]);
+        printConfiguration();
+      // *************** SET SERVER IP **************//
+      } else if (strstr(serialInData, "gateway_ip=")) {
+        Serial.println(F("Setting Gateway IP\n"));
+        char *token;
+        token = strtok(&serialInData[11], ".");
+        gateway_ip[0] = atoi(token);
+        token = strtok(NULL, ".");
+        gateway_ip[1] = atoi(token);
+        token = strtok(NULL, ".");
+        gateway_ip[2] = atoi(token);    
+        token = strtok(NULL, ".");
+        gateway_ip[3] = atoi(token);
+        printConfiguration();
+    #endif
+    // *************** STORE CONFIGURATION **************//
+    } else if (strstr(serialInData, "save")) {
+      Serial.println(F("Saving configuration to EEPROM\n"));
+      saveConfiguration();
+      printConfiguration();
+    } else {
+      Serial.println(F("Unknown command"));
+    }
   }
-}
+#endif
