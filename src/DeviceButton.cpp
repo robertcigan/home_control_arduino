@@ -11,7 +11,9 @@ DeviceButton::DeviceButton(uint32_t device_id, uint8_t pin, uint32_t poll, bool 
   } else {
     pinMode(pin, INPUT_PULLUP);
   }
-  print();
+  #if defined(WITH_SERIAL)
+    print();
+  #endif
 }
 
 void DeviceButton::loop() {
@@ -54,6 +56,8 @@ bool DeviceButton::is_output() {
   return false;
 }
 
-void DeviceButton::print() {
-  Serial.println(F("Button: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" pin:")); Serial.println(pin);
-}
+#if defined(WITH_SERIAL)
+  void DeviceButton::print() {
+    Serial.println(F("Button: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" pin:")); Serial.println(pin);
+  }
+#endif

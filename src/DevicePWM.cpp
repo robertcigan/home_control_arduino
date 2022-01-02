@@ -9,9 +9,11 @@ DevicePWM::DevicePWM(uint32_t device_id, uint8_t pin, uint8_t default_value) {
   pinMode(pin, OUTPUT);
   #if defined(ESP32)
   #else
-  analogWrite(pin, convertPercentToPWM(default_value));
+    analogWrite(pin, convertPercentToPWM(default_value));
   #endif
-  print();
+  #if defined(WITH_SERIAL)
+    print();
+  #endif
 }
 
 void DevicePWM::loop() {
@@ -23,7 +25,7 @@ void DevicePWM::set_pwm(uint8_t new_value) {
     value = new_value;
     #if defined(ESP32)
     #else
-    analogWrite(pin, convertPercentToPWM(value));
+      analogWrite(pin, convertPercentToPWM(value));
     #endif
     #if defined(SHOW_VALUES_IN_SERIAL)
       Serial.print(F("Pin: ")); Serial.print(pin); Serial.print(F(" PWM set to ")); Serial.print(value); Serial.println(F("%"));
@@ -34,7 +36,7 @@ void DevicePWM::set_pwm(uint8_t new_value) {
 void DevicePWM::uninitialize() { 
   #if defined(ESP32)
   #else
-  analogWrite(pin, 0);
+    analogWrite(pin, 0);
   #endif
 }
 
@@ -51,9 +53,11 @@ bool DevicePWM::is_output() {
   return true;
 }
 
-void DevicePWM::print() {
-  Serial.println(F("PWM: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" pin:")); Serial.print(pin); Serial.print(F(" value:")); Serial.print(value); Serial.println(F("%"));
-}
+#if defined(WITH_SERIAL)
+  void DevicePWM::print() {
+    Serial.println(F("PWM: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" pin:")); Serial.print(pin); Serial.print(F(" value:")); Serial.print(value); Serial.println(F("%"));
+  }
+#endif
 
 uint8_t DevicePWM::convertPercentToPWM(uint8_t percent) { 
   uint8_t tmp_val = round((255/100.0)*percent);

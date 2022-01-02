@@ -11,7 +11,9 @@ class DeviceDistance : public Device {
     void action(JsonObject doc);
     DynamicJsonDocument sendData();
     void uninitialize();
-    void print();
+    #if defined(WITH_SERIAL)
+      void print();
+    #endif
   private:
     uint8_t read_pin;
     uint8_t write_pin;

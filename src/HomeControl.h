@@ -1,9 +1,6 @@
 #ifndef HOME_CONTROL_H
 #define HOME_CONTROL_H
 
-#define SHOW_MEMORY_IN_SERIAL
-//#define SHOW_VALUES_IN_SERIAL
-
 #if defined(__AVR_ATmega2560__)
   #define WITH_SERIAL
   #define WITH_SERIAL_CONFIG
@@ -12,7 +9,9 @@
 
 #if defined(ARDUINO_ESP8266_ESP01)
   #define WITH_WIFI
-  #define WITH_FILE_CONFIG
+  #define WITH_SERIAL
+  #define WITH_SERIAL_CONFIG
+  //#define WITH_FILE_CONFIG
 #endif
 
 #if defined(ARDUINO_ESP8266_NODEMCU)
@@ -20,6 +19,18 @@
   #define WITH_SERIAL
   #define WITH_SERIAL_CONFIG
   #define WITH_LED
+#endif
+
+#if defined(ESP32)
+  #define WITH_WIFI
+  #define WITH_SERIAL
+  #define WITH_SERIAL_CONFIG
+  #define WITH_LED
+#endif
+
+#if defined(WITH_SERIAL)
+  //#define SHOW_MEMORY_IN_SERIAL
+  //#define SHOW_VALUES_IN_SERIAL
 #endif
 
 #include <Arduino.h>

@@ -11,7 +11,9 @@ DeviceSwitch::DeviceSwitch(uint32_t device_id, uint8_t pin, uint32_t poll, bool 
   } else {
     pinMode(pin, INPUT_PULLUP);
   }
-  print();
+  #if defined(WITH_SERIAL)
+    print();
+  #endif
 }
 
 void DeviceSwitch::loop() {
@@ -52,6 +54,8 @@ bool DeviceSwitch::is_output() {
   return false;
 }
 
-void DeviceSwitch::print() {
-  Serial.println(F("Switch: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" pin:")); Serial.println(pin);
-}
+#if defined(WITH_SERIAL)
+  void DeviceSwitch::print() {
+    Serial.println(F("Switch: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" pin:")); Serial.println(pin);
+  }
+#endif

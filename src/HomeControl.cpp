@@ -30,7 +30,7 @@ bool HomeControl::setup() {
     pinMode(LED_BUILTIN, OUTPUT); //TEST LED
   #endif
   #if defined(__AVR_ATmega2560__)
-    ppinMode(10, OUTPUT);   // set the Ethernet SS pin as an output (necessary!)
+    pinMode(10, OUTPUT);   // set the Ethernet SS pin as an output (necessary!)
     digitalWrite(10, HIGH);
   #endif
     
@@ -152,6 +152,8 @@ bool HomeControl::setupConnection() {
       Serial.setDebugOutput(true);
     #endif
     WiFi.mode(WIFI_STA);
+    WiFi.config(client_ip, gateway_ip, gateway_ip);
+    WiFi.begin(wifi_ssid, wifi_pass);
   #endif
   setNetwork();
   return true;
@@ -191,9 +193,6 @@ void HomeControl::setNetwork() {
         Serial.println(F("Link status: Off"));
       #endif
     }
-  #elif defined(WITH_WIFI)
-    WiFi.config(client_ip, gateway_ip, gateway_ip);
-    WiFi.begin(wifi_ssid, wifi_pass);
   #endif
 }
 

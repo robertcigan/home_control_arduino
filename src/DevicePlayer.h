@@ -12,8 +12,9 @@ class DevicePlayer : public Device {
     void action(JsonObject doc);
     DynamicJsonDocument sendData();
     void uninitialize();
-    void print();
-    
+    #if defined(WITH_SERIAL)
+      void print();
+    #endif
     void play(uint8_t directory, uint8_t file);
     void volume(uint8_t vol);
   private:

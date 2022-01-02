@@ -6,7 +6,9 @@ DeviceAnalogInput::DeviceAnalogInput(uint32_t device_id, uint8_t apin, uint32_t 
   this->device_id = device_id;
   this->poll = 5000;
   pinMode(apin, INPUT);
-  print();
+  #if defined(WITH_SERIAL)
+    print();
+  #endif
 }
 
 void DeviceAnalogInput::loop() {
@@ -50,6 +52,8 @@ bool DeviceAnalogInput::is_output() {
   return false;
 }
 
-void DeviceAnalogInput::print() {
-  Serial.println(F("Value: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" analog pin:")); Serial.println(apin); 
-}
+#if defined(WITH_SERIAL)
+  void DeviceAnalogInput::print() {
+    Serial.println(F("Value: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" analog pin:")); Serial.println(apin); 
+  }
+#endif

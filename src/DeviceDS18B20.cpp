@@ -11,7 +11,9 @@ DeviceDS18B20::DeviceDS18B20(uint32_t device_id, uint8_t pin, uint32_t poll) {
   this->sensor->begin();
   this->sensor->setResolution(10);
   this->temperature_asked = false;
-  print();
+  #if defined(WITH_SERIAL)
+    print();
+  #endif
 }
 
 void DeviceDS18B20::loop() {
@@ -61,6 +63,8 @@ bool DeviceDS18B20::is_output() {
   return false;
 }
 
-void DeviceDS18B20::print() {
-  Serial.println(F("DS18B20: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" pin:")); Serial.println(pin); 
-}
+#if defined(WITH_SERIAL)
+  void DeviceDS18B20::print() {
+    Serial.println(F("DS18B20: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" pin:")); Serial.println(pin); 
+  }
+#endif

@@ -11,7 +11,9 @@ class DeviceRelay : public Device {
     void action(JsonObject doc);
     DynamicJsonDocument sendData();
     void uninitialize();
-    void print();
+    #if defined(WITH_SERIAL)
+      void print();
+    #endif
     
     void set_relay(bool new_value);
   private:

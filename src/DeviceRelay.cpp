@@ -8,7 +8,9 @@ DeviceRelay::DeviceRelay(uint32_t device_id, uint8_t pin, bool default_value) {
   // initialize output
   pinMode(pin, OUTPUT);
   digitalWrite(pin, this->value ? LOW : HIGH);
-  print();
+  #if defined(WITH_SERIAL)
+    print();
+  #endif
 }
 
 void DeviceRelay::loop() {
@@ -42,6 +44,8 @@ bool DeviceRelay::is_output() {
   return true;
 }
 
-void DeviceRelay::print() {
-  Serial.println(F("Relay: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" pin:")); Serial.print(pin); Serial.print(F(" value:")); Serial.println(value);
-}
+#if defined(WITH_SERIAL)
+  void DeviceRelay::print() {
+    Serial.println(F("Relay: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" pin:")); Serial.print(pin); Serial.print(F(" value:")); Serial.println(value);
+  }
+#endif

@@ -8,7 +8,9 @@ DeviceDistance::DeviceDistance(uint32_t device_id, uint8_t write_pin, uint8_t re
   this->poll = poll;
   pinMode(write_pin, OUTPUT);
   pinMode(read_pin, INPUT);
-  print();
+  #if defined(WITH_SERIAL)
+    print();
+  #endif
 }
 
 void DeviceDistance::loop() {
@@ -61,6 +63,8 @@ bool DeviceDistance::is_output() {
   return false;
 }
 
-void DeviceDistance::print() {
-  Serial.println(F("Distance: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" write pin:")); Serial.print(write_pin); Serial.print(F(" read pin:")); Serial.println(read_pin);
-}
+#if defined(WITH_SERIAL)
+  void DeviceDistance::print() {
+    Serial.println(F("Distance: ")); Serial.print(F(" id:")); Serial.println(device_id); Serial.print(F(" write pin:")); Serial.print(write_pin); Serial.print(F(" read pin:")); Serial.println(read_pin);
+  }
+#endif

@@ -11,8 +11,9 @@ class DevicePWM : public Device {
     void action(JsonObject doc);
     DynamicJsonDocument sendData();
     void uninitialize();
-    void print();
-    
+    #if defined(WITH_SERIAL)
+      void print();
+    #endif
     void set_pwm(uint8_t new_value);
   private:
     uint8_t value;

@@ -13,7 +13,9 @@ class DeviceDS18B20 : public Device {
     void action(JsonObject doc);
     DynamicJsonDocument sendData();
     void uninitialize();
-    void print();
+    #if defined(WITH_SERIAL)
+      void print();
+    #endif
   private:
     float value;
     OneWire *one_wire;

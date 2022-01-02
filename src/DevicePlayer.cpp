@@ -8,7 +8,9 @@ DevicePlayer::DevicePlayer(uint32_t device_id) {
   delay(500);//Requires 500ms to wait for the MP3 module to initialize  
   this->player->setVolume(5);
   delay(50);
-  print();
+  #if defined(WITH_SERIAL)
+    print();
+  #endif
 }
 
 void DevicePlayer::loop() {
@@ -52,6 +54,8 @@ bool DevicePlayer::is_output() {
   return true;
 }
 
-void DevicePlayer::print() {
-  Serial.println(F("Player: ")); Serial.print(F(" id:")); Serial.println(device_id);
-}
+#if defined(WITH_SERIAL)
+  void DevicePlayer::print() {
+    Serial.println(F("Player: ")); Serial.print(F(" id:")); Serial.println(device_id);
+  }
+#endif
