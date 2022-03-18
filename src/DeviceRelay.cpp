@@ -5,9 +5,14 @@ DeviceRelay::DeviceRelay(uint32_t device_id, uint8_t pin, bool default_value) {
   this->pin = pin;
   this->device_id = device_id;
   this->value = default_value;
+  this->inverted = inverted;
   // initialize output
   pinMode(pin, OUTPUT);
-  digitalWrite(pin, this->value ? LOW : HIGH);
+  if (inverted) {
+    digitalWrite(pin, this->value ? HIGH : LOW);
+  } else {
+    digitalWrite(pin, this->value ? LOW : HIGH);
+  }
   #if defined(WITH_SERIAL)
     print();
   #endif
@@ -20,7 +25,11 @@ void DeviceRelay::set_relay(bool new_value) {
   if (new_value != value) {
     last_value_change = millis();
     value = new_value;
-    digitalWrite(pin, value ? LOW : HIGH);
+    if (inverted) {
+      digitalWrite(pin, this->value ? HIGH : LOW);
+    } else {
+      digitalWrite(pin, this->value ? LOW : HIGH);
+    }
     #if defined(SHOW_VALUES_IN_SERIAL)
       Serial.print(F("Pin: ")); Serial.print(pin); Serial.print(F(" relay set to ")); Serial.println(value);
     #endif

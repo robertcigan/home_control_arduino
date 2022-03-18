@@ -18,6 +18,7 @@ class DeviceRelay : public Device {
     void set_relay(bool new_value);
   private:
     bool value;
+    bool inverted;
 };
 
 #endif

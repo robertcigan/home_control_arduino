@@ -1,3 +1,7 @@
+## Home Control Arduino v8 (2022-03) ##
+
+* Relay inverted option support
+
 ## Home Control Arduino v7 (2021-12) ##
 
 * Added PWM output device
