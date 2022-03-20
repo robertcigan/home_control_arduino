@@ -5,7 +5,7 @@
 
 class DeviceRelay : public Device {
   public:
-    DeviceRelay(uint32_t device_id, uint8_t pin, bool default_value);
+    DeviceRelay(uint32_t device_id, uint8_t pin, bool default_value, bool inverted);
     bool is_output();
     void loop();
     void action(JsonObject doc);
