@@ -1,6 +1,6 @@
 #include "DeviceRelay.h"
 
-DeviceRelay::DeviceRelay(uint32_t device_id, uint8_t pin, bool default_value) {
+DeviceRelay::DeviceRelay(uint32_t device_id, uint8_t pin, bool default_value, bool inverted) {
   setup();
   this->pin = pin;
   this->device_id = device_id;

@@ -330,7 +330,7 @@ void HomeControl::parseCommand() {
         DeviceButton *device = new DeviceButton(doc["add"]["id"], doc["add"]["pin"], doc["add"]["poll"], doc["add"]["inverted"]);
         addDevice(*device);
       } else if (doc["add"]["type"] == F("relay")) {
-        DeviceRelay *device = new DeviceRelay(doc["add"]["id"], doc["add"]["pin"], doc["add"]["default"]);
+        DeviceRelay *device = new DeviceRelay(doc["add"]["id"], doc["add"]["pin"], doc["add"]["default"], doc["add"]["inverted"]);
         addDevice(*device);
       } else if (doc["add"]["type"] == F("player")) {
         DevicePlayer *device = new DevicePlayer(doc["add"]["id"].as<uint32_t>());
