@@ -151,6 +151,8 @@ bool HomeControl::setupConnection() {
     #if defined(WITH_SERIAL) && defined(SHOW_VALUES_IN_SERIAL)
       Serial.setDebugOutput(true);
     #endif
+    WiFi.persistent(false);
+    WiFi.setAutoConnect(false);
     WiFi.mode(WIFI_STA);
     WiFi.config(client_ip, gateway_ip, gateway_ip);
     WiFi.begin(wifi_ssid, wifi_pass);
