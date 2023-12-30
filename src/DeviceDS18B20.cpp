@@ -17,7 +17,7 @@ DeviceDS18B20::DeviceDS18B20(uint32_t device_id, uint8_t pin, uint32_t poll) {
 }
 
 void DeviceDS18B20::loop() {
-  if ((last_run + poll) < millis() || last_run > millis()) { // read value if over the poll time or millis rotated
+  if ((millis() - last_run) >= poll) { // read value if over the poll time or millis rotated
     ask_for_temperature();
     last_run = millis();
   }

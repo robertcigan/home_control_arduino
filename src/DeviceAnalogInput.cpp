@@ -12,7 +12,7 @@ DeviceAnalogInput::DeviceAnalogInput(uint32_t device_id, uint8_t apin, uint32_t 
 }
 
 void DeviceAnalogInput::loop() {
-  if ((last_run + poll) < millis() || last_run > millis()) { // read value if over the poll time or millis rotated
+  if ((millis() - last_run) >= poll) { // read value if over the poll time or millis rotated
     
     #if defined(__AVR_ATmega2560__)
       float conversion =  5.0 / 1023;

@@ -17,7 +17,7 @@ DeviceButton::DeviceButton(uint32_t device_id, uint8_t pin, uint32_t poll, bool 
 }
 
 void DeviceButton::loop() {
-  if ((last_run + poll) < millis() || last_run > millis()) { // read value if over the poll time or millis rotated
+  if ((millis() - last_run) >= poll) { // read value if over the poll time or millis rotated
     bool new_value;
     if (inverted) {
       new_value = digitalRead(pin);

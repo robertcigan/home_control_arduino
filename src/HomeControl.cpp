@@ -347,6 +347,9 @@ void HomeControl::parseCommand() {
       } else if (doc["add"]["type"] == F("pwm")) {
         DevicePWM *device = new DevicePWM(doc["add"]["id"], doc["add"]["pin"], doc["add"]["default"]);
         addDevice(*device);
+      } else if (doc["add"]["type"] == F("curtain")) {
+        DevicePWM *device = new DevicePWM(doc["add"]["id"], doc["add"]["open_pin"], doc["add"]["close_pin"]);
+        addDevice(*device);
       }
     } else if (doc["reset_devices"]) {
       deleteAllDevices();
@@ -420,11 +423,9 @@ void HomeControl::loop() {
 }
 
 void HomeControl::loopDevices() {
-  // loop through all input devices to read their data
+  // loop through all devices to read their data
   for(int i = 0; i < device_count; i++) {
-    if (!(devices[i]->is_output())) {
-      devices[i]->loop();
-    }
+    devices[i]->loop();
   }
 }
 

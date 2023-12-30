@@ -60,7 +60,7 @@
 #define MAX_DEVICES                     40
 #define INPUT_BUFFER_SIZE               500
 #define SERIAL_INPUT_BUFFER_SIZE        50
-#define CONNECTION_TIMEOUT              20*1000L
+#define CONNECTION_TIMEOUT              30*1000L
 #define VERSION                         8
 
 #define EEPROM_INITIALIZED_VALUE        255

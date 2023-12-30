@@ -14,7 +14,7 @@ DeviceDistance::DeviceDistance(uint32_t device_id, uint8_t write_pin, uint8_t re
 }
 
 void DeviceDistance::loop() {
-  if ((last_run + poll) < millis() || last_run > millis()) { // read value if over the poll time or millis rotated
+  if ((millis() - last_run) >= poll) { // read value if over the poll time or millis rotated
     uint32_t new_value = read_distance();
     if (new_value != value) {
       last_value_change = millis();
