@@ -56,6 +56,7 @@
 #include "DeviceAnalogInput.h"
 #include "DeviceDS18B20.h"
 #include "DevicePWM.h"
+#include "DeviceCurtain.h"
 
 #define MAX_DEVICES                     40
 #define INPUT_BUFFER_SIZE               500

@@ -1,5 +1,5 @@
-#ifndef DEVICE_DS18B20_H
-#define DEVICE_DS18B20_H
+#ifndef DEVICE_CURTAIN_H
+#define DEVICE_CURTAIN_H
 #include <Arduino.h>
 #include "Device.h"
 

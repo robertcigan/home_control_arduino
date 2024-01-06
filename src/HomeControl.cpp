@@ -350,7 +350,7 @@ void HomeControl::parseCommand() {
         DevicePWM *device = new DevicePWM(doc["add"]["id"], doc["add"]["pin"], doc["add"]["default"]);
         addDevice(*device);
       } else if (doc["add"]["type"] == F("curtain")) {
-        DevicePWM *device = new DevicePWM(doc["add"]["id"], doc["add"]["open_pin"], doc["add"]["close_pin"]);
+        DeviceCurtain *device = new DeviceCurtain(doc["add"]["id"], doc["add"]["open_pin"], doc["add"]["close_pin"]);
         addDevice(*device);
       }
     } else if (doc["reset_devices"]) {
