@@ -62,7 +62,7 @@
 #define INPUT_BUFFER_SIZE               500
 #define SERIAL_INPUT_BUFFER_SIZE        50
 #define CONNECTION_TIMEOUT              30*1000L
-#define VERSION                         8
+#define VERSION                         9
 
 #define EEPROM_INITIALIZED_VALUE        255
 #define EEPROM_CONFIG_SET_OFFSET        0

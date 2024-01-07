@@ -6,7 +6,8 @@
 #define MANUAL_2 A4
 #define EXTERNAL_1 A1
 #define EXTERNAL_2 A2
-#define FULL_ACTION_TIME 50e3
+#define EXTERNAL_INVERT true
+#define FULL_ACTION_TIME 70e3
 #define FULL_CONTROL_TIME 3e3
 
 uint8_t status = 0; // 0 - wait, 1 - open, 2 - close, 3 - full open, 4 - full close, 11 - external open, 12 - external close
@@ -39,7 +40,7 @@ void setup() {
 }
 
 void loop() {
-  Serial.print(status);
+  //Serial.print(status);
   if (status == 0) {
     if (digitalRead(MANUAL_1) == LOW) {
       Serial.println("Manual Open");
@@ -53,13 +54,13 @@ void loop() {
       actionStarted = millis();
       closeCurtain();
       delay(200);
-    } else if (digitalRead(EXTERNAL_1) == LOW) {
+    } else if (digitalRead(EXTERNAL_1) == (EXTERNAL_INVERT ? HIGH : LOW)) {
       Serial.println("External Open");
       status = 11;
       actionStarted = millis();
       openCurtain();
       delay(200);
-    } else if (digitalRead(EXTERNAL_2) == LOW) {
+    } else if (digitalRead(EXTERNAL_2) == (EXTERNAL_INVERT ? HIGH : LOW)) {
       Serial.println("External Close");
       status = 12;
       actionStarted = millis();
@@ -116,13 +117,13 @@ void loop() {
     }
   } else if (status == 11) {
     // OPENING
-    if (digitalRead(EXTERNAL_1) == HIGH || (millis() - actionStarted) > FULL_ACTION_TIME) {
+    if (digitalRead(EXTERNAL_1) == (EXTERNAL_INVERT ? LOW : HIGH) || (millis() - actionStarted) > FULL_ACTION_TIME) {
       status = 0;
       stopCurtain();
     }
   } else if (status == 12) {
     // OPENING
-    if (digitalRead(EXTERNAL_2) == HIGH || (millis() - actionStarted) > FULL_ACTION_TIME) {
+    if (digitalRead(EXTERNAL_2) == (EXTERNAL_INVERT ? LOW : HIGH) || (millis() - actionStarted) > FULL_ACTION_TIME) {
       status = 0;
       stopCurtain();
     }

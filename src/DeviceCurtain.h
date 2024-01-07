@@ -5,7 +5,7 @@
 
 class DeviceCurtain : public Device {
   public:
-    DeviceCurtain(uint32_t device_id, uint8_t open_pin, uint32_t close_pin);
+    DeviceCurtain(uint32_t device_id, uint8_t open_pin, uint32_t close_pin, bool inverted);
     bool is_output();
     void loop();
     void action(JsonObject doc);
@@ -15,6 +15,7 @@ class DeviceCurtain : public Device {
       void print();
     #endif
   private:
+    bool inverted;
     uint8_t open_pin;
     uint8_t close_pin;
     uint32_t action_length;
