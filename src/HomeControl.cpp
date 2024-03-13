@@ -153,6 +153,7 @@ bool HomeControl::setupConnection() {
     #endif
     WiFi.persistent(false);
     WiFi.setAutoConnect(false);
+    WiFi.setAutoReconnect(true);
     WiFi.mode(WIFI_STA);
     WiFi.config(client_ip, gateway_ip, gateway_ip);
     WiFi.begin(wifi_ssid, wifi_pass);
