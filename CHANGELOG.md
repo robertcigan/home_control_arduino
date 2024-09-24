@@ -1,7 +1,11 @@
+# Changelog
+
+[Home Control Arduino Firmware](README.md) | [Changelog](CHANGELOG.md)
+
 ## Home Control Arduino v9 (2023-12)
 
 * Curtain device with open and close pin added
-* milis() overflow correctly fixed
+* millis() overflow correctly fixed
 
 ## Home Control Arduino v8 (2022-03)
 

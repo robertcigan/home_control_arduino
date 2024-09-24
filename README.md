@@ -1,4 +1,6 @@
-# Home Control Arduino FW
+# Home Control Arduino Firmware
+
+[Home Control Arduino Firmware](README.md) | [Changelog](CHANGELOG.md)
 
 [Home Control](https:/github.com/robertcigan/home_control) Arduino FW codebase for flashing Arduino Mega 2650, ESP8266 or EPS32 board. 
 Configured to be used within [Platformio in VS Code](https://platformio.org/).
@@ -10,30 +12,62 @@ After flashing the board you need to configure the board network settings. Netwo
 Connect the board via Serial interface to a computer and open the serial console (Arduino or Platformio).  Default bardrate is 115200. Set `server_ip`, `client_ip`,` mac` to set the network settings for ethernet connection. For WiFi connection include also `gateway_ip`, `ssid` and `pass` setting commands to set the network settings. After setting all the parameters, send command `save` to save current settings to EEPROM. If you do not save current settings via `save` command, after resetting the board it will loose all the settings. Once saved reset the board and that's all.
 
 __Available serial interface commands__
-`server_ip=123.123.123.123`
+
+* `server_ip=123.123.123.123`
 Sets the Home Control server IP address. 
 
-`client_ip=123.123.123.123`
+* `client_ip=123.123.123.123`
 Sets the board IP address. Make sure it's unique within your network.
 
-`mac=DE:AD:FF:FF:FF:FF`
+* `mac=DE:AD:FF:FF:FF:FF`
 Sets the board MAC address. Make sure it's unique within your network. Use prefix DE:AD - ie. DE:AD:97:8A:30:60
 
-`gateway_ip=123.123.123.123`
+* `gateway_ip=123.123.123.123`
 Sets the network gateway IP address.
 
-`ssid=mynetwork`
+* `ssid=mynetwork`
 Sets the WiFi network name to connect to.
 
-`pass=mypassword`
+* `pass=mypassword`
 Password for the WiFi network.
 
-`save`
+* `save`
 Stores current network settings to EEPROM to make it persistent.
 
 ## Communication protocol
 
 Communication with the server is on TCP in JSON data format. It has a persisted connection with a duplex communication. Both server and clients (boards) are sending data to each other. Every 10s the server asks via a ping command to receive a pong command from boards to keep the connection alive and detect offline boards. TCP connection timeout does not work reliably unfortunately. 
+
+### Add command
+
+Adds a new device to the board. Device types is listed below. Each device may have different set of options. `id` is required.
+
+`{ "add": { "type: "relay", "id": 7, "default": false, "inverted": false }}` example for relay device
+
+###  Reset devices
+
+Removes all devices from the board.
+
+`{ "reset_devices": true }`
+
+### Ping
+
+Ping command is a request to send  `pong` response to the server with the board status data. Server pings all boards every 10 seconds.
+
+`{ "ping": true }`
+
+### Read
+
+Request to the board to send the device value back to server.
+
+`{ "read": { "id": 5 } }`
+
+### Write
+
+Request to set the specific value to the device based on ID.
+
+`{ "write": { "id": 5, "value": true} }` example for relay device
+`{ "write": { "id": 6, "action": "open", "value": 3000} }` example for curtain module - open the curtain for 3000ms
 
 ## Status LED
 
