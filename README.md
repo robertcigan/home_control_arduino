@@ -118,3 +118,11 @@ Time in ms to engage automated manual control to fully open/close. Ie. hold the 
 #### Wiring 
 
 _TODO_
+
+## Contributing
+
+I encourage you to contribute to Home Control project! 
+
+## License
+
+Home Control is released under the [MIT License](https://opensource.org/licenses/MIT).
