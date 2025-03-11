@@ -16,7 +16,7 @@ void DeviceAnalogInput::loop() {
     
     #if defined(__AVR_ATmega2560__)
       float conversion =  5.0 / 1023;
-    #elif defined(__XTENSA__)
+    #elif defined(ESP32) || defined(ESP8266)
       float conversion =  3.3 / 1023;
     #endif
     float new_value = (int)(analogRead(apin) * conversion * 100 + 0.5) / 100.0;

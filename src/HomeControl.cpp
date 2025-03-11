@@ -525,7 +525,7 @@ void HomeControl::availableMemory() {
       while ((buf = (byte *) malloc(--size)) == NULL);
       free(buf);
       Serial.print(F("Free memory: ")); Serial.println(size);
-    #elif defined(__XTENSA__)
+    #elif defined(ESP32) || defined(ESP8266)
     #endif
   #endif
 }
