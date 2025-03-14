@@ -4,17 +4,15 @@
 HomeControl home_control;
 
 void setup() {
-  // Wire.begin();
-  // #if defined(WITH_SERIAL)
-  delay(5000);
-  Serial.begin(115200);
-  Serial.println(F("Home Control loading..."));
-  // #endif
-  // home_control.setup();
+  Wire.begin();
+  #if defined(WITH_SERIAL)
+    delay(5000);
+    Serial.begin(115200);
+    Serial.println(F("Home Control loading..."));
+  #endif
+  home_control.setup();
 }
 
 void loop() {
-  //home_control.loop();  
-  Serial.println("Ho");
-  delay(1000);
+  home_control.loop();
 }
