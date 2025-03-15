@@ -21,11 +21,16 @@
   #define WITH_LED
 #endif
 
-#if defined(ESP32)
+#if defined(ARDUINO_NodeMCU_32S)
   #define WITH_WIFI
   #define WITH_SERIAL
   #define WITH_SERIAL_CONFIG
-  #define WITH_LED
+#endif
+
+#if defined(ARDUINO_LOLIN_C3_MINI)
+  #define WITH_WIFI
+  #define WITH_SERIAL
+  #define WITH_SERIAL_CONFIG
 #endif
 
 #if defined(WITH_SERIAL)
@@ -40,6 +45,7 @@
 #elif defined(ESP8266)
   #include <ESP8266WiFi.h>
 #elif defined(ESP32)
+  #include "esp_wifi.h"
   #include <WiFi.h>
 #endif
 #include <SimpleTimer.h>
@@ -48,7 +54,7 @@
 #include <stdlib.h>
 
 #include "Device.h"
-#include "DeviceSwitch.h" 
+#include "DeviceSwitch.h"
 #include "DeviceButton.h"
 #include "DeviceRelay.h"
 #include "DevicePlayer.h"
@@ -111,7 +117,7 @@ class HomeControl {
       float getRSSI();
     #endif
     bool setupConnection();
-    void setNetwork();  
+    void setNetwork();
     Device *devices[MAX_DEVICES];
 
     void connect();

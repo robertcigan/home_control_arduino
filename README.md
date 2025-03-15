@@ -2,7 +2,7 @@
 
 [Home Control Arduino Firmware](README.md) | [Changelog](CHANGELOG.md)
 
-[Home Control](https:/github.com/robertcigan/home_control) Arduino FW codebase for flashing Arduino Mega 2650, ESP8266 or EPS32 board. 
+[Home Control](https:/github.com/robertcigan/home_control) Arduino FW codebase for flashing Arduino Mega 2650, ESP8266 or EPS32 board.
 Configured to be used within [Platformio in VS Code](https://platformio.org/).
 
 ## Initial configuration
@@ -14,7 +14,7 @@ Connect the board via Serial interface to a computer and open the serial console
 __Available serial interface commands__
 
 * `server_ip=123.123.123.123`
-Sets the Home Control server IP address. 
+Sets the Home Control server IP address.
 
 * `client_ip=123.123.123.123`
 Sets the board IP address. Make sure it's unique within your network.
@@ -36,7 +36,7 @@ Stores current network settings to EEPROM to make it persistent.
 
 ## Communication protocol
 
-Communication with the server is on TCP in JSON data format. It has a persisted connection with a duplex communication. Both server and clients (boards) are sending data to each other. Every 10s the server asks via a ping command to receive a pong command from boards to keep the connection alive and detect offline boards. TCP connection timeout does not work reliably unfortunately. 
+Communication with the server is on TCP in JSON data format. It has a persisted connection with a duplex communication. Both server and clients (boards) are sending data to each other. Every 10s the server asks via a ping command to receive a pong command from boards to keep the connection alive and detect offline boards. TCP connection timeout does not work reliably unfortunately.
 
 ### Add command
 
@@ -79,9 +79,9 @@ On startup, the LED is turned on and once the connection with the server is esta
 
 In order to support the Curtain Switch module to control reliably devices like curtains, rollers, shutters and etc. you should use this dedicated simple HW module instead of directly controlling 2 relays. It uses a Arduino Nano to control a dual relay module. Best should be wired to Home Control board like Arduino Mega using a optocoupler to ensure any interference or any HW issues due to a long wiring. I'm running several of these modules over Cat5 cable using optocoupler with distances around 10-30m without any problems.
 
-Curtain Switch module enables you to preserve existing manual wall switch to manually control the device with 2 extra inputs thus combining manual switch control and remote control via Home Control automation. In case of any problems with the Home Control system, you can still open/close your curtain/shutters manually like you are used to. 
+Curtain Switch module enables you to preserve existing manual wall switch to manually control the device with 2 extra inputs thus combining manual switch control and remote control via Home Control automation. In case of any problems with the Home Control system, you can still open/close your curtain/shutters manually like you are used to.
 
-Using manual switch control, it also adds button hold function so you do not need to hold the control switch all the time to fully open or close the curtain or shutters. When pressing the up/down for 3 seconds (by default), the motor is stopped for half a second indicating to release of the switch/button. If you release it, the module continues to power the motor automatically without a need to hold it. If you keep the switch pressed, it will stop the motor. 
+Using manual switch control, it also adds button hold function so you do not need to hold the control switch all the time to fully open or close the curtain or shutters. When pressing the up/down for 3 seconds (by default), the motor is stopped for half a second indicating to release of the switch/button. If you release it, the module continues to power the motor automatically without a need to hold it. If you keep the switch pressed, it will stop the motor.
 
 #### Configuring the functionality
 
@@ -115,13 +115,20 @@ Time in ms to keep the motors running in automated manual control to fully open/
 Time in ms to engage automated manual control to fully open/close. Ie. hold the button for 3000ms to engage the full open/close mode.
 
 
-#### Wiring 
+#### Wiring
 
-_TODO_
+__Arduino Meta 2560__
+
+__ESP01__
+
+__ESP32C3MINI__
+
+__ESP32 WROOM__
+
 
 ## Contributing
 
-I encourage you to contribute to Home Control project! 
+I encourage you to contribute to Home Control project!
 
 ## License
 
