@@ -17,7 +17,7 @@ HomeControl::HomeControl() {
   #if defined(WITH_WIFI)
     this->gateway_ip = IPAddress(192, 168, 0, 0);
   #endif
-  
+
   this->inIndex = 0;
   this->inStatus = 0; // 0 - wait, 1 - command
   #if defined(WITH_SERIAL_CONFIG)
@@ -33,26 +33,26 @@ bool HomeControl::setup() {
     pinMode(10, OUTPUT);   // set the Ethernet SS pin as an output (necessary!)
     digitalWrite(10, HIGH);
   #endif
-    
+
   #if defined(ESP8266) || defined(ESP32)
     #if defined(WITH_SERIAL_CONFIG)
       EEPROM.begin(512);
     #endif
   #endif
-  
+
   if (loadConfiguration()) {
     #if defined(WITH_SERIAL)
       Serial.println(F("Configuration successfull!"));
     #endif
   } else {
-    return false; 
+    return false;
   }
   if (setupConnection()) {
     #if defined(WITH_SERIAL)
       Serial.println(F("Network setup successfull!"));
     #endif
   } else {
-    return false; 
+    return false;
   }
   availableMemory();
   return true;
@@ -62,9 +62,9 @@ bool HomeControl::loadConfiguration() {
   #if defined(WITH_FILE_CONFIG)
     // implement load config from file
   #elif defined(WITH_SERIAL_CONFIG)
-    if (EEPROM.read(EEPROM_CONFIG_SET_OFFSET) == EEPROM_INITIALIZED_VALUE && 
+    if (EEPROM.read(EEPROM_CONFIG_SET_OFFSET) == EEPROM_INITIALIZED_VALUE &&
       EEPROM.read(EEPROM_CONFIG_SET_OFFSET + 1) == EEPROM_INITIALIZED_VALUE) {
-        
+
       for(int i = 0; i <= 3; i++) {
       client_ip[i] = EEPROM.read(i + EEPROM_CLIENT_IP_OFFSET);
       }
@@ -74,7 +74,7 @@ bool HomeControl::loadConfiguration() {
       for(int i = 0; i <= 5; i++) {
         mac[i] = EEPROM.read(i + EEPROM_MAC_OFFSET);
       }
-      
+
       #if defined(WITH_WIFI)
         for(int i = 0; i <= 19; i++) {
           wifi_ssid[i] = EEPROM.read(i + EEPROM_WIFI_SSID_OFFSET);
@@ -151,12 +151,17 @@ bool HomeControl::setupConnection() {
     #if defined(WITH_SERIAL) && defined(SHOW_VALUES_IN_SERIAL)
       Serial.setDebugOutput(true);
     #endif
-    WiFi.persistent(false);
-    WiFi.setAutoConnect(false);
+    // WiFi.persistent(false);
     WiFi.setAutoReconnect(true);
     WiFi.mode(WIFI_STA);
     WiFi.config(client_ip, gateway_ip, gateway_ip);
     WiFi.begin(wifi_ssid, wifi_pass);
+    #if defined(ESP32)
+      esp_wifi_set_ps (WIFI_PS_NONE);
+    #endif
+    #if defined(ARDUINO_LOLIN_C3_MINI)
+      WiFi.setTxPower(WIFI_POWER_8_5dBm); //https://forum.arduino.cc/t/no-wifi-connect-with-esp32-c3-super-mini/1324046/12
+    # endif
   #endif
   setNetwork();
   return true;
@@ -385,6 +390,7 @@ void HomeControl::pong() {
   DynamicJsonDocument doc(200);
   doc["pong"] = true;
   doc["version"] = VERSION;
+  doc["devices"] = device_count;
   #if defined(WITH_WIFI)
     doc["ssid"] = WiFi.SSID();
     doc["rssi"] = getRSSI();
@@ -419,8 +425,10 @@ void HomeControl::loop() {
     readInput();
     loopDevices();
     reportDevices();
-    //flush all data from buffer to network
-    client.flush();
+    //flush all data from buffer to network, not supported on ESP anymore
+    #if !defined(WITH_WIFI)
+      client.flush();
+    #endif
   }
   timer.run();
 }
@@ -525,7 +533,7 @@ void HomeControl::availableMemory() {
       while ((buf = (byte *) malloc(--size)) == NULL);
       free(buf);
       Serial.print(F("Free memory: ")); Serial.println(size);
-    #elif defined(__XTENSA__)
+    #elif defined(ESP32) || defined(ESP8266)
     #endif
   #endif
 }
@@ -576,7 +584,7 @@ void HomeControl::availableMemory() {
       token = strtok(NULL, ".");
       client_ip[1] = atoi(token);
       token = strtok(NULL, ".");
-      client_ip[2] = atoi(token);    
+      client_ip[2] = atoi(token);
       token = strtok(NULL, ".");
       client_ip[3] = atoi(token);
       printConfiguration();
@@ -589,7 +597,7 @@ void HomeControl::availableMemory() {
       token = strtok(NULL, ".");
       server_ip[1] = atoi(token);
       token = strtok(NULL, ".");
-      server_ip[2] = atoi(token);    
+      server_ip[2] = atoi(token);
       token = strtok(NULL, ".");
       server_ip[3] = atoi(token);
       printConfiguration();
@@ -630,7 +638,7 @@ void HomeControl::availableMemory() {
         token = strtok(NULL, ".");
         gateway_ip[1] = atoi(token);
         token = strtok(NULL, ".");
-        gateway_ip[2] = atoi(token);    
+        gateway_ip[2] = atoi(token);
         token = strtok(NULL, ".");
         gateway_ip[3] = atoi(token);
         printConfiguration();
