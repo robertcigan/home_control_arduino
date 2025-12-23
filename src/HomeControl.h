@@ -67,8 +67,8 @@
 #define MAX_DEVICES                     40
 #define INPUT_BUFFER_SIZE               500
 #define SERIAL_INPUT_BUFFER_SIZE        50
-#define CONNECTION_TIMEOUT              30*1000L
-#define VERSION                         9
+#define CONNECTION_TIMEOUT              25*1000L
+#define VERSION                         10
 
 #define EEPROM_INITIALIZED_VALUE        255
 #define EEPROM_CONFIG_SET_OFFSET        0
@@ -114,8 +114,15 @@ class HomeControl {
       char wifi_ssid[20] = {'\0'};
       char wifi_pass[20] = {'\0'};
       IPAddress gateway_ip;
+      uint32_t wifi_reconnect_attempt;
+      uint32_t last_wifi_check;
+      bool wifi_connecting;
+      uint8_t reconnect_attempts;
       float getRSSI();
+      void printWiFiStatus();
+      uint32_t getReconnectDelay();
     #endif
+    uint32_t last_connection_attempt;  // Used for all platforms (WiFi and Ethernet)
     bool setupConnection();
     void setNetwork();
     Device *devices[MAX_DEVICES];
@@ -133,6 +140,11 @@ class HomeControl {
     void sendDevices();
     void loopDevices();
     void reportDevices();
+    void printTimestamp();
+    
+    // Debug timing variables (moved from static in functions)
+    uint32_t last_debug_message;
+    uint32_t last_skip_message;
 
     #if defined(WITH_LED)
       void turnOnTestModeLED(int timeout);

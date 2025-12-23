@@ -16,7 +16,18 @@ HomeControl::HomeControl() {
 
   #if defined(WITH_WIFI)
     this->gateway_ip = IPAddress(192, 168, 0, 0);
+    this->wifi_reconnect_attempt = 0;
+    this->last_wifi_check = 0;
+    this->wifi_connecting = false;
+    this->reconnect_attempts = 0;
   #endif
+
+  // Connection timing (used for all platforms)
+  this->last_connection_attempt = 0;
+
+  // Debug timing variables
+  this->last_debug_message = 0;
+  this->last_skip_message = 0;
 
   this->inIndex = 0;
   this->inStatus = 0; // 0 - wait, 1 - command
@@ -151,18 +162,69 @@ bool HomeControl::setupConnection() {
     #if defined(WITH_SERIAL) && defined(SHOW_VALUES_IN_SERIAL)
       Serial.setDebugOutput(true);
     #endif
-    // WiFi.persistent(false);
-    WiFi.setAutoReconnect(true);
+
+    // Disable WiFi persistence to prevent flash wear on all WiFi platforms
+    WiFi.persistent(false);
+    // Disable auto-reconnect - we have our own reconnection logic
+    WiFi.setAutoReconnect(false);
     WiFi.mode(WIFI_STA);
+
+    // Configure static IP before connecting
     WiFi.config(client_ip, gateway_ip, gateway_ip);
+
+    // Start WiFi connection
     WiFi.begin(wifi_ssid, wifi_pass);
+
+    // Platform-specific power management configuration
     #if defined(ESP32)
-      esp_wifi_set_ps (WIFI_PS_NONE);
+      esp_wifi_set_ps(WIFI_PS_NONE);
+      #if defined(WITH_SERIAL)
+        Serial.println(F("ESP32: WiFi power saving disabled"));
+      #endif
+    #elif defined(ESP8266)
+      WiFi.setSleepMode(WIFI_NONE_SLEEP);
+      #if defined(WITH_SERIAL)
+        Serial.println(F("ESP8266: WiFi sleep mode disabled"));
+      #endif
     #endif
+
     #if defined(ARDUINO_LOLIN_C3_MINI)
       WiFi.setTxPower(WIFI_POWER_8_5dBm); //https://forum.arduino.cc/t/no-wifi-connect-with-esp32-c3-super-mini/1324046/12
-    # endif
+      #if defined(WITH_SERIAL)
+        Serial.println(F("ESP32-C3: TX power set to 8.5dBm"));
+      #endif
+    #endif
+
+    // Wait for initial connection with timeout
+    uint32_t startTime = millis();
+    #if defined(WITH_SERIAL)
+      Serial.print(F("WiFi connecting"));
+    #endif
+
+    while (WiFi.status() != WL_CONNECTED && (millis() - startTime) < 10000) {
+      delay(100);  // Shorter delay than original 500ms
+      #if defined(WITH_SERIAL)
+        Serial.print(".");
+      #endif
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+      #if defined(WITH_SERIAL)
+        Serial.println(F("\nWiFi connected successfully"));
+        Serial.print(F("IP: ")); Serial.println(WiFi.localIP());
+        Serial.print(F("SSID: ")); Serial.println(WiFi.SSID());
+        Serial.print(F("Signal: ")); Serial.print(getRSSI()); Serial.println(F("%"));
+      #endif
+      return true;
+    } else {
+      #if defined(WITH_SERIAL)
+        Serial.println(F("\nWiFi connection failed in setup"));
+        Serial.print(F("WiFi status: ")); Serial.println(WiFi.status());
+      #endif
+      return false;
+    }
   #endif
+
   setNetwork();
   return true;
 }
@@ -174,7 +236,7 @@ void HomeControl::setNetwork() {
       #if defined(WITH_SERIAL)
         Serial.println(F("Ethernet shield was not found."));
       #endif
-      return false;
+      return;
     } else if (Ethernet.hardwareStatus() == EthernetW5100) {
       #if defined(WITH_SERIAL)
         Serial.println(F("W5100 Ethernet controller detected."));
@@ -205,12 +267,24 @@ void HomeControl::setNetwork() {
 }
 
 void HomeControl::connect() {
-  setNetwork(); // set network again if W5500 looses data due to rest or so
+  setNetwork(); // set network again if W5500 loses data due to reset or so
+
   #if defined(__AVR_ATmega2560__)
-    client.stop();
+    // Only stop if actually connected
+    if (client.connected()) {
+      client.stop();
+      delay(50);  // Short delay to release socket
+    }
+
     #if defined(WITH_SERIAL)
-      Serial.print(F("Connecting to server: "));
+      printTimestamp();
+      Serial.print(F("[TCP] Connecting to server: "));
+      Serial.print(server_ip);
+      Serial.print(F(":"));
+      Serial.print(port);
+      Serial.print(F(" "));
     #endif
+
     if (client.connect(server_ip, port)) {
       #if defined(WITH_SERIAL)
         Serial.println(F("OK"));
@@ -224,42 +298,91 @@ void HomeControl::connect() {
         Serial.println(F("failed"));
       #endif
     }
+
   #elif defined(WITH_WIFI)
-    client.stop();
-    #if defined(WITH_SERIAL)
-      Serial.print(F("Connecting to WiFi: "));
-    #endif
-    uint32_t started = millis();
-    while (WiFi.status() != WL_CONNECTED && (millis() - started) < 5000 ) {
-      delay(500);
-      Serial.print(".");
-    }
-    if (WiFi.status() == WL_CONNECTED) {
+    // Check WiFi status first
+    if (WiFi.status() != WL_CONNECTED) {
       #if defined(WITH_SERIAL)
-        Serial.print(F("WiFi connected: "));
-        Serial.println(WiFi.SSID());
-        Serial.print(F("Signal Strength: "));
-        Serial.print(getRSSI());
-        Serial.println(F("%"));
-        Serial.print(F("Connecting to server: "));
-        Serial.print(F(" "));
+        Serial.print(F("WiFi disconnected (status: "));
+        Serial.print(WiFi.status());
+        Serial.print(F("), reconnecting: "));
       #endif
-      if (client.connect(server_ip, port)) {
+
+      // Non-blocking WiFi reconnection
+      if (!wifi_connecting) {
+        WiFi.disconnect();
+        delay(10);  // Short delay for stability between disconnect and begin
+        WiFi.begin(wifi_ssid, wifi_pass);
+        wifi_connecting = true;
+        wifi_reconnect_attempt = millis();
         #if defined(WITH_SERIAL)
-          Serial.println(F("OK"));
-        #endif
-        last_request = millis();
-        if (!devicesSet) {
-          sendDevices();
-        }
-      } else {
-        #if defined(WITH_SERIAL)
-          Serial.println(F("failed"));
+          Serial.println(F("started"));
         #endif
       }
-    } else {
+
+      // Check if WiFi reconnection succeeded or timed out
+      if (millis() - wifi_reconnect_attempt > 10000) {
+        // Timeout, reset attempt
+        wifi_connecting = false;
+        #if defined(WITH_SERIAL)
+          Serial.println(F("WiFi reconnection timeout"));
+        #endif
+        return;
+      }
+
+      if (WiFi.status() != WL_CONNECTED) {
+        return; // Still connecting, try again next loop
+      }
+
+      wifi_connecting = false;
       #if defined(WITH_SERIAL)
-        Serial.println(F("WiFi not connected!"));
+        Serial.print(F("WiFi reconnected: "));
+        Serial.println(WiFi.SSID());
+        Serial.print(F("Signal: "));
+        Serial.print(getRSSI());
+        Serial.println(F("%"));
+      #endif
+    }
+
+    // Now handle TCP connection - only stop if actually connected
+    if (client.connected()) {
+      client.stop();
+      delay(50);  // Short delay to release socket
+    }
+
+    #if defined(WITH_SERIAL)
+      Serial.print(F("Connecting to server: "));
+      Serial.print(server_ip);
+      Serial.print(F(":"));
+      Serial.print(port);
+      Serial.print(F(" "));
+    #endif
+
+    if (client.connect(server_ip, port)) {
+      #if defined(WITH_SERIAL)
+        Serial.println(F("OK"));
+      #endif
+
+      // Configure TCP options for better connection stability
+      #if defined(ESP8266)
+        client.setNoDelay(true);
+        client.keepAlive(10, 5, 3);  // idle=10s, interval=5s, count=3
+      #elif defined(ESP32)
+        client.setNoDelay(true);
+      #endif
+
+      last_request = millis();
+      reconnect_attempts = 0;  // Reset backoff counter on success
+
+      // Wait a bit before sending device registration to let connection stabilize
+      if (!devicesSet) {
+        delay(100); // Small delay to let connection stabilize
+        sendDevices();
+      }
+    } else {
+      reconnect_attempts++;  // Increment for exponential backoff
+      #if defined(WITH_SERIAL)
+        Serial.println(F("TCP connection failed"));
       #endif
     }
   #endif
@@ -296,7 +419,8 @@ void HomeControl::readInput() {
       if (inChar == '\n') {
         inData[inIndex] = '\0';
         #if defined(WITH_SERIAL)
-          Serial.print(F("Received:"));Serial.println(inData);
+          printTimestamp();
+          Serial.print(F("[TCP] Received: "));Serial.println(inData);
         #endif
         parseCommand();
         resetInputData();
@@ -387,21 +511,34 @@ void HomeControl::parseCommand() {
 }
 
 void HomeControl::pong() {
-  DynamicJsonDocument doc(200);
+  DynamicJsonDocument doc(250);
   doc["pong"] = true;
   doc["version"] = VERSION;
   doc["devices"] = device_count;
+  doc["uptime"] = millis() / 1000;
+  #if defined(ESP32) || defined(ESP8266)
+    doc["free_memory"] = ESP.getFreeHeap();
+  #endif
+
   #if defined(WITH_WIFI)
     doc["ssid"] = WiFi.SSID();
     doc["rssi"] = getRSSI();
+    doc["wifi_status"] = WiFi.status();
+    doc["ip"] = WiFi.localIP().toString();
   #endif
+
   #if defined(WITH_SERIAL)
-    Serial.print(F("Sending: "));
+    Serial.print(F("[PING] Received server ping, responding: "));
     serializeJson(doc, Serial);
-    Serial.print("\n");
+    Serial.println();
+    #if defined(WITH_WIFI)
+      printWiFiStatus();
+    #endif
   #endif
+
   serializeJson(doc, client);
   client.write("\n");
+
   #if defined(WITH_LED)
     turnOnTestModeLED(250);
   #endif
@@ -415,21 +552,82 @@ void HomeControl::loop() {
   #if defined(WITH_SERIAL_CONFIG)
     readSerialInput();
   #endif
-  if (!client.connected() || connectionExpired()) {
+
+  #if defined(WITH_WIFI)
+    // Check WiFi status periodically (every 5 seconds, half of server ping interval)
+    if (millis() - last_wifi_check > 5000) {
+      last_wifi_check = millis();
+      if (WiFi.status() != WL_CONNECTED) {
+        #if defined(WITH_SERIAL)
+          printTimestamp();
+          Serial.print(F("[WiFi] Connection lost (status: "));
+          Serial.print(WiFi.status());
+          Serial.println(F(")"));
+        #endif
+        // Force reconnection
+        connect();
+        return;
+      }
+    }
+  #endif
+
+  // Check both client connection and timeout
+  // Optimization: only check timeout if connected (no point checking if already disconnected)
+  bool is_disconnected = !client.connected();
+  bool is_expired = is_disconnected ? false : connectionExpired();
+  bool need_reconnect = is_disconnected || is_expired;
+
+  if (need_reconnect) {
+    // Only print debug message once per reconnection cycle (using member variable)
+    if (millis() - last_debug_message > 1000) { // Limit debug messages to once per second
+      last_debug_message = millis();
+
+      #if defined(WITH_SERIAL)
+        printTimestamp();
+        if (is_disconnected) {
+          Serial.print(F("[TCP] Client disconnected (uptime: "));
+        } else {
+          Serial.print(F("[TIMEOUT] Connection expired (uptime: "));
+        }
+        Serial.print(millis() / 1000);
+        Serial.print(F("s, last_request: "));
+        Serial.print((millis() - last_request) / 1000);
+        Serial.println(F("s ago)"));
+      #endif
+    }
+
     #if defined(WITH_LED)
       turnOnTestModeLED(0);
     #endif
-    delay(5000);
-    connect();
+
+    // Add delay between reconnection attempts using exponential backoff
+    #if defined(WITH_WIFI)
+      uint32_t reconnect_delay = getReconnectDelay();
+    #else
+      uint32_t reconnect_delay = 2000;  // Fixed 2s for Ethernet
+    #endif
+
+    if (millis() - last_connection_attempt > reconnect_delay) {
+      last_connection_attempt = millis();
+      connect();
+    } else {
+      #if defined(WITH_SERIAL)
+        // Using member variable instead of static
+        if (millis() - last_skip_message > 3000) { // Only print this message every 3 seconds
+          printTimestamp();
+          Serial.print(F("[TCP] Waiting "));
+          Serial.print((reconnect_delay - (millis() - last_connection_attempt)) / 1000);
+          Serial.println(F("s before next reconnection attempt"));
+          last_skip_message = millis();
+        }
+      #endif
+    }
   } else {
     readInput();
     loopDevices();
     reportDevices();
-    //flush all data from buffer to network, not supported on ESP anymore
-    #if !defined(WITH_WIFI)
-      client.flush();
-    #endif
   }
+
   timer.run();
 }
 
@@ -445,7 +643,8 @@ void HomeControl::reportDevices() {
   for(int i = 0; i < device_count; i++) {
     if (devices[i]->report && devices[i]->value_initialized) {
       #if defined(WITH_SERIAL)
-        Serial.print(F("Sending: "));
+        printTimestamp();
+        Serial.print(F("[DEVICE] Sending: "));
         serializeJson(devices[i]->sendData(), Serial);
         Serial.println();
       #endif
@@ -544,7 +743,70 @@ void HomeControl::availableMemory() {
     rssi = isnan(rssi) ? -100.0 : rssi;
     return min(max(2 * (rssi + 100.0), 0.0), 100.0);
   }
+
+  void HomeControl::printWiFiStatus() {
+    #if defined(WITH_SERIAL)
+      printTimestamp();
+      Serial.print(F("[WiFi] Status: "));
+      switch (WiFi.status()) {
+        case WL_CONNECTED:     Serial.print(F("CONNECTED")); break;
+        case WL_DISCONNECTED:  Serial.print(F("DISCONNECTED")); break;
+        case WL_IDLE_STATUS:   Serial.print(F("IDLE")); break;
+        case WL_NO_SSID_AVAIL: Serial.print(F("NO_SSID_AVAIL")); break;
+        case WL_CONNECT_FAILED:Serial.print(F("CONNECT_FAILED")); break;
+        case WL_CONNECTION_LOST:Serial.print(F("CONNECTION_LOST")); break;
+        case WL_SCAN_COMPLETED:Serial.print(F("SCAN_COMPLETED")); break;
+        default:               Serial.print(WiFi.status()); break;
+      }
+      if (WiFi.status() == WL_CONNECTED) {
+        Serial.print(F(", SSID: ")); Serial.print(WiFi.SSID());
+        Serial.print(F(", IP: ")); Serial.print(WiFi.localIP());
+        Serial.print(F(", Signal: ")); Serial.print(getRSSI()); Serial.print(F("%"));
+        Serial.print(F(", Uptime: ")); Serial.print(millis() / 1000); Serial.print(F("s"));
+      }
+      Serial.println();
+    #endif
+  }
+
+  uint32_t HomeControl::getReconnectDelay() {
+    // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
+    // After successful connection, reconnect_attempts is reset to 0
+    uint32_t delay_ms = 2000UL << min(reconnect_attempts, (uint8_t)4);
+    uint32_t max_delay = 30000UL;
+
+    #if defined(WITH_SERIAL)
+      if (reconnect_attempts > 0) {
+        printTimestamp();
+        Serial.print(F("[TCP] Backoff attempt #"));
+        Serial.print(reconnect_attempts);
+        Serial.print(F(", delay: "));
+        Serial.print(min(delay_ms, max_delay) / 1000);
+        Serial.println(F("s"));
+      }
+    #endif
+
+    return min(delay_ms, max_delay);
+  }
+
 #endif
+
+void HomeControl::printTimestamp() {
+  #if defined(WITH_SERIAL)
+    uint32_t seconds = millis() / 1000;
+    uint32_t minutes = seconds / 60;
+    uint32_t hours = minutes / 60;
+    Serial.print(F("["));
+    if (hours < 10) Serial.print(F("0"));
+    Serial.print(hours % 24);
+    Serial.print(F(":"));
+    if ((minutes % 60) < 10) Serial.print(F("0"));
+    Serial.print(minutes % 60);
+    Serial.print(F(":"));
+    if ((seconds % 60) < 10) Serial.print(F("0"));
+    Serial.print(seconds % 60);
+    Serial.print(F("] "));
+  #endif
+}
 
 #if defined(WITH_SERIAL_CONFIG)
   void HomeControl::readSerialInput() {
