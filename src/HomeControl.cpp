@@ -1,6 +1,13 @@
 #include "HomeControl.h"
 
+#if defined(WITH_DEBUG_LOG)
+  HomeControl* HomeControl::_instance = nullptr;
+#endif
+
 HomeControl::HomeControl() {
+  #if defined(WITH_DEBUG_LOG)
+    _instance = this;
+  #endif
   this->devicesSet = false;
   this->device_count = 0;
   this->last_request = millis();
@@ -73,6 +80,8 @@ bool HomeControl::setup() {
         #if defined(WITH_SERIAL)
           Serial.println(F("Debug log initialized"));
         #endif
+        // Set up config callbacks for web interface
+        debugLog.setConfigCallbacks(getNetworkConfig, saveNetworkConfig);
         lastWiFiConnected = (WiFi.status() == WL_CONNECTED);
         debugLog.setServerConnected(false);
       } else {
@@ -869,6 +878,47 @@ void HomeControl::printTimestamp() {
     Serial.print(F("] "));
   #endif
 }
+
+#if defined(WITH_DEBUG_LOG)
+  NetworkConfig HomeControl::getNetworkConfig() {
+    NetworkConfig cfg;
+    if (_instance) {
+      cfg.client_ip = _instance->client_ip;
+      cfg.server_ip = _instance->server_ip;
+      #if defined(WITH_WIFI)
+        cfg.gateway_ip = _instance->gateway_ip;
+        strncpy(cfg.wifi_ssid, _instance->wifi_ssid, 19);
+        cfg.wifi_ssid[19] = '\0';
+        strncpy(cfg.wifi_pass, _instance->wifi_pass, 19);
+        cfg.wifi_pass[19] = '\0';
+      #endif
+      memcpy(cfg.mac, _instance->mac, 6);
+    }
+    return cfg;
+  }
+
+  void HomeControl::saveNetworkConfig(NetworkConfig& cfg) {
+    if (!_instance) return;
+
+    _instance->client_ip = cfg.client_ip;
+    _instance->server_ip = cfg.server_ip;
+    #if defined(WITH_WIFI)
+      _instance->gateway_ip = cfg.gateway_ip;
+      strncpy(_instance->wifi_ssid, cfg.wifi_ssid, 19);
+      _instance->wifi_ssid[19] = '\0';
+      strncpy(_instance->wifi_pass, cfg.wifi_pass, 19);
+      _instance->wifi_pass[19] = '\0';
+    #endif
+    memcpy(_instance->mac, cfg.mac, 6);
+
+    _instance->saveConfiguration();
+
+    #if defined(WITH_SERIAL)
+      Serial.println(F("[Config] Network config saved via web"));
+      _instance->printConfiguration();
+    #endif
+  }
+#endif
 
 #if defined(WITH_SERIAL_CONFIG)
   void HomeControl::readSerialInput() {

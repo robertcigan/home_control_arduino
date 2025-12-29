@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <time.h>
+#include <EEPROM.h>
 
 #if defined(ESP8266)
   #include <ESP8266WiFi.h>
@@ -15,6 +16,20 @@
   #include <LittleFS.h>
   #include <Update.h>
 #endif
+
+// Network config structure for web configuration
+struct NetworkConfig {
+  IPAddress client_ip;
+  IPAddress server_ip;
+  IPAddress gateway_ip;
+  char wifi_ssid[20];
+  char wifi_pass[20];
+  byte mac[6];
+};
+
+// Callback types for config access
+typedef NetworkConfig (*GetConfigCallback)();
+typedef void (*SaveConfigCallback)(NetworkConfig&);
 
 // Log file settings
 #define DEBUG_LOG_FILE "/debug.log"
@@ -40,6 +55,9 @@ class DebugLog {
 
     // Initialize the debug log system
     bool begin(IPAddress ntpServer);
+
+    // Set config callbacks (call before begin or after)
+    void setConfigCallbacks(GetConfigCallback getConfig, SaveConfigCallback saveConfig);
 
     // Main loop - handles web server
     void loop();
@@ -78,6 +96,10 @@ class DebugLog {
     bool _ntpSynced;
     uint32_t _lastStatusLog;     // Last periodic status log time
 
+    // Config callbacks
+    GetConfigCallback _getConfig;
+    SaveConfigCallback _saveConfig;
+
     // Time functions
     void setupNTP(IPAddress ntpServer);
     bool isTimeSynced();
@@ -96,6 +118,8 @@ class DebugLog {
     void handleDebugStatus();
     void handleUpdatePage();
     void handleUpdateUpload();
+    void handleConfigPage();
+    void handleConfigSave();
     void handleNotFound();
 
     // Helper functions

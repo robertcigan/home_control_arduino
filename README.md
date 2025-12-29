@@ -34,6 +34,31 @@ Password for the WiFi network.
 * `save`
 Stores current network settings to EEPROM to make it persistent.
 
+## Web Interface
+
+ESP8266 and ESP32 boards have a built-in web interface for monitoring and configuration.
+
+### Available Pages
+
+| URL | Description |
+|-----|-------------|
+| `/debug` | Status log and device monitoring (no auth required) |
+| `/debug/status` | JSON status endpoint |
+| `/update` | Firmware update (auth required) |
+| `/config` | Network configuration (auth required) |
+
+### Network Configuration
+
+You can change network settings via web interface instead of serial commands:
+
+1. Open `http://<device-ip>/config` in your browser
+2. Enter credentials (same as OTA update)
+3. Modify the network settings:
+   - Client IP, Server IP, Gateway IP
+   - WiFi SSID and Password
+   - MAC Address
+4. Click "Save & Reboot" - the device will save settings to EEPROM and restart
+
 ## OTA (Over-The-Air) Updates
 
 ESP8266 and ESP32 boards support firmware updates via web interface without needing a serial connection.
@@ -49,7 +74,7 @@ Firmware binary is located at `.pio/build/<env>/firmware.bin` after compilation.
 
 ### Secrets Configuration
 
-OTA update credentials are stored in `src/secrets.h` (not committed to git for security).
+OTA update and web config credentials are stored in `src/secrets.h` (not committed to git for security).
 
 **Setup:**
 1. Copy `src/secrets.h.example` to `src/secrets.h`

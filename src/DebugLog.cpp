@@ -9,6 +9,13 @@ DebugLog::DebugLog() {
   _ntpSynced = false;
   _lastStatusLog = 0;
   _server = nullptr;
+  _getConfig = nullptr;
+  _saveConfig = nullptr;
+}
+
+void DebugLog::setConfigCallbacks(GetConfigCallback getConfig, SaveConfigCallback saveConfig) {
+  _getConfig = getConfig;
+  _saveConfig = saveConfig;
 }
 
 bool DebugLog::begin(IPAddress ntpServer) {
@@ -360,6 +367,12 @@ void DebugLog::setupWebServer() {
       if (checkUpdateAuth()) handleUpdateUpload();
     }
   );
+  _server->on("/config", HTTP_GET, [this]() {
+    if (checkUpdateAuth()) handleConfigPage();
+  });
+  _server->on("/config", HTTP_POST, [this]() {
+    if (checkUpdateAuth()) handleConfigSave();
+  });
   _server->onNotFound([this]() { handleNotFound(); });
 
   _server->begin();
@@ -410,7 +423,8 @@ void DebugLog::handleDebugPage() {
   html += F("<p><a class='btn' href='/debug'>&#x21bb; Refresh</a>");
   html += F("<a class='btn' href='/debug/clear'>&#x1F5D1; Clear</a>");
   html += F("<a class='btn' href='/debug/status'>{ } JSON</a>");
-  html += F("<a class='btn' href='/update'>&#x1F4E6; Update</a></p>");
+  html += F("<a class='btn' href='/update'>&#x1F4E6; Update</a>");
+  html += F("<a class='btn' href='/config'>&#x2699; Config</a></p>");
 
   // Log table
   html += F("<div class='log-wrap'><table><thead><tr>");
@@ -667,6 +681,141 @@ void DebugLog::handleUpdateUpload() {
       Serial.println(F("[OTA-Web] Update aborted"));
     #endif
   }
+}
+
+void DebugLog::handleConfigPage() {
+  if (!_getConfig) {
+    _server->send(500, "text/plain", "Config not available");
+    return;
+  }
+
+  NetworkConfig cfg = _getConfig();
+
+  String html = F("<!DOCTYPE html><html><head>");
+  html += F("<meta charset='UTF-8'>");
+  html += F("<meta name='viewport' content='width=device-width, initial-scale=1'>");
+  html += F("<title>Network Config</title>");
+  html += F("<style>");
+  html += F("body{font-family:monospace;background:#1a1a2e;color:#eee;margin:20px;}");
+  html += F("h1{color:#0f4c75;}");
+  html += F("input{width:200px;padding:8px;margin:5px 0;background:#16213e;color:#eee;border:1px solid #0f4c75;}");
+  html += F("label{display:inline-block;width:120px;}");
+  html += F(".btn{background:#0f4c75;color:#fff;padding:10px 20px;border:none;cursor:pointer;margin-top:15px;}");
+  html += F(".btn:hover{background:#1b6ca8;}");
+  html += F(".warn{color:#f39c12;margin-top:15px;}");
+  html += F("a{color:#4af;}");
+  html += F("</style></head><body>");
+
+  html += F("<h1>Network Configuration</h1>");
+  html += F("<form method='POST' action='/config'>");
+
+  // Client IP
+  html += F("<p><label>Client IP:</label>");
+  html += F("<input type='text' name='client_ip' value='");
+  html += cfg.client_ip.toString();
+  html += F("'></p>");
+
+  // Server IP
+  html += F("<p><label>Server IP:</label>");
+  html += F("<input type='text' name='server_ip' value='");
+  html += cfg.server_ip.toString();
+  html += F("'></p>");
+
+  // Gateway IP
+  html += F("<p><label>Gateway IP:</label>");
+  html += F("<input type='text' name='gateway_ip' value='");
+  html += cfg.gateway_ip.toString();
+  html += F("'></p>");
+
+  // WiFi SSID
+  html += F("<p><label>WiFi SSID:</label>");
+  html += F("<input type='text' name='ssid' maxlength='19' value='");
+  html += cfg.wifi_ssid;
+  html += F("'></p>");
+
+  // WiFi Password
+  html += F("<p><label>WiFi Password:</label>");
+  html += F("<input type='password' name='pass' maxlength='19' value='");
+  html += cfg.wifi_pass;
+  html += F("'></p>");
+
+  // MAC Address
+  html += F("<p><label>MAC Address:</label>");
+  char macStr[18];
+  snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+    cfg.mac[0], cfg.mac[1], cfg.mac[2], cfg.mac[3], cfg.mac[4], cfg.mac[5]);
+  html += F("<input type='text' name='mac' value='");
+  html += macStr;
+  html += F("'></p>");
+
+  html += F("<button type='submit' class='btn'>Save &amp; Reboot</button>");
+  html += F("</form>");
+
+  html += F("<p class='warn'>Device will reboot after saving!</p>");
+  html += F("<p><a href='/debug'>Back to Debug</a></p>");
+
+  html += F("</body></html>");
+
+  _server->send(200, "text/html", html);
+}
+
+void DebugLog::handleConfigSave() {
+  if (!_saveConfig) {
+    _server->send(500, "text/plain", "Config save not available");
+    return;
+  }
+
+  NetworkConfig cfg;
+
+  // Parse Client IP
+  if (_server->hasArg("client_ip")) {
+    cfg.client_ip.fromString(_server->arg("client_ip"));
+  }
+
+  // Parse Server IP
+  if (_server->hasArg("server_ip")) {
+    cfg.server_ip.fromString(_server->arg("server_ip"));
+  }
+
+  // Parse Gateway IP
+  if (_server->hasArg("gateway_ip")) {
+    cfg.gateway_ip.fromString(_server->arg("gateway_ip"));
+  }
+
+  // Parse WiFi SSID
+  if (_server->hasArg("ssid")) {
+    strncpy(cfg.wifi_ssid, _server->arg("ssid").c_str(), 19);
+    cfg.wifi_ssid[19] = '\0';
+  }
+
+  // Parse WiFi Password
+  if (_server->hasArg("pass")) {
+    strncpy(cfg.wifi_pass, _server->arg("pass").c_str(), 19);
+    cfg.wifi_pass[19] = '\0';
+  }
+
+  // Parse MAC Address
+  if (_server->hasArg("mac")) {
+    String macStr = _server->arg("mac");
+    unsigned int m[6];
+    if (sscanf(macStr.c_str(), "%x:%x:%x:%x:%x:%x", &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) == 6) {
+      for (int i = 0; i < 6; i++) cfg.mac[i] = m[i];
+    }
+  }
+
+  // Save config via callback
+  _saveConfig(cfg);
+
+  writeLog("Config saved via web, rebooting");
+
+  _server->send(200, "text/html",
+    F("<!DOCTYPE html><html><head><meta charset='UTF-8'>"
+      "<meta http-equiv='refresh' content='5;url=/config'>"
+      "<style>body{font-family:monospace;background:#1a1a2e;color:#eee;margin:20px;}</style>"
+      "</head><body><h2>Configuration Saved!</h2><p>Rebooting in 3 seconds...</p></body></html>"));
+
+  delay(1000);
+  ESP.restart();
 }
 
 // ==================== Helper Functions ====================

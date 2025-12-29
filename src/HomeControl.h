@@ -180,5 +180,12 @@ class HomeControl {
       void resetSerialInputData();
       void parseSerialCommand();
     #endif
+
+    #if defined(WITH_DEBUG_LOG)
+      // Config callbacks for web interface
+      static HomeControl* _instance;
+      static NetworkConfig getNetworkConfig();
+      static void saveNetworkConfig(NetworkConfig& cfg);
+    #endif
  };
 #endif
