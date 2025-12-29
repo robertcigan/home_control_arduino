@@ -34,6 +34,36 @@ Password for the WiFi network.
 * `save`
 Stores current network settings to EEPROM to make it persistent.
 
+## OTA (Over-The-Air) Updates
+
+ESP8266 and ESP32 boards support firmware updates via web interface without needing a serial connection.
+
+### Web Update
+
+1. Open `http://<device-ip>/update` in your browser
+2. Enter credentials (default: `admin` / password from `secrets.h`)
+3. Select the firmware `.bin` file and upload
+4. Device will reboot automatically after successful update
+
+Firmware binary is located at `.pio/build/<env>/firmware.bin` after compilation.
+
+### Secrets Configuration
+
+OTA update credentials are stored in `src/secrets.h` (not committed to git for security).
+
+**Setup:**
+1. Copy `src/secrets.h.example` to `src/secrets.h`
+2. Set your credentials:
+```c
+#define OTA_UPDATE_USERNAME "admin"
+#define OTA_UPDATE_PASSWORD "your_password"
+```
+
+To disable authentication, use an empty password:
+```c
+#define OTA_UPDATE_PASSWORD ""
+```
+
 ## Communication protocol
 
 Communication with the server is on TCP in JSON data format. It has a persisted connection with a duplex communication. Both server and clients (boards) are sending data to each other. Every 10s the server asks via a ping command to receive a pong command from boards to keep the connection alive and detect offline boards. TCP connection timeout does not work reliably unfortunately.

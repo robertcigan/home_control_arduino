@@ -20,6 +20,10 @@ HomeControl::HomeControl() {
     this->last_wifi_check = 0;
     this->wifi_connecting = false;
     this->reconnect_attempts = 0;
+    #if defined(WITH_DEBUG_LOG)
+      this->lastWiFiConnected = false;
+      this->lastServerConnected = false;
+    #endif
   #endif
 
   // Connection timing (used for all platforms)
@@ -61,6 +65,21 @@ bool HomeControl::setup() {
   if (setupConnection()) {
     #if defined(WITH_SERIAL)
       Serial.println(F("Network setup successfull!"));
+    #endif
+
+    #if defined(WITH_DEBUG_LOG)
+      // Initialize debug log with gateway as NTP server
+      if (debugLog.begin(gateway_ip)) {
+        #if defined(WITH_SERIAL)
+          Serial.println(F("Debug log initialized"));
+        #endif
+        lastWiFiConnected = (WiFi.status() == WL_CONNECTED);
+        debugLog.setServerConnected(false);
+      } else {
+        #if defined(WITH_SERIAL)
+          Serial.println(F("Debug log initialization failed"));
+        #endif
+      }
     #endif
   } else {
     return false;
@@ -216,10 +235,6 @@ bool HomeControl::setupConnection() {
         Serial.print(F("Signal: ")); Serial.print(getRSSI()); Serial.println(F("%"));
       #endif
 
-      #if defined(WITH_OTA)
-        setupOTA();
-      #endif
-
       return true;
     } else {
       #if defined(WITH_SERIAL)
@@ -347,6 +362,11 @@ void HomeControl::connect() {
         Serial.print(getRSSI());
         Serial.println(F("%"));
       #endif
+
+      #if defined(WITH_DEBUG_LOG)
+        debugLog.logWiFiConnected();
+        lastWiFiConnected = true;
+      #endif
     }
 
     // Now handle TCP connection - only stop if actually connected
@@ -379,6 +399,11 @@ void HomeControl::connect() {
       last_request = millis();
       reconnect_attempts = 0;  // Reset backoff counter on success
 
+      #if defined(WITH_DEBUG_LOG)
+        debugLog.logServerConnected();
+        lastServerConnected = true;
+      #endif
+
       // Wait a bit before sending device registration to let connection stabilize
       if (!devicesSet) {
         delay(100); // Small delay to let connection stabilize
@@ -388,6 +413,10 @@ void HomeControl::connect() {
       reconnect_attempts++;  // Increment for exponential backoff
       #if defined(WITH_SERIAL)
         Serial.println(F("TCP connection failed"));
+      #endif
+
+      #if defined(WITH_DEBUG_LOG)
+        debugLog.logReconnectAttempt(reconnect_attempts, getReconnectDelay());
       #endif
     }
   #endif
@@ -493,24 +522,6 @@ void HomeControl::parseCommand() {
       devicesSet = false;
     } else if (doc["ping"]) {
       pong();
-    #if defined(WITH_OTA)
-    } else if (doc["update"]) {
-      // Server-triggered OTA update: {"update": {"url": "http://192.168.0.100:8080/firmware.bin"}}
-      const char* url = doc["update"]["url"];
-      if (url && strlen(url) > 0) {
-        #if defined(WITH_SERIAL)
-          printTimestamp();
-          Serial.print(F("[OTA] Server requested update from: "));
-          Serial.println(url);
-        #endif
-        performHTTPUpdate(url);
-      } else {
-        #if defined(WITH_SERIAL)
-          printTimestamp();
-          Serial.println(F("[OTA] Update command received but URL is missing"));
-        #endif
-      }
-    #endif
     } else if (doc["read"]) {
       for(int i = 0; i < device_count; i++) {
         if (!(devices[i]->is_output()) && devices[i]->device_id == doc["read"]["id"]) {
@@ -576,14 +587,26 @@ void HomeControl::loop() {
     readSerialInput();
   #endif
 
-  #if defined(WITH_OTA)
-    ArduinoOTA.handle();
+  #if defined(WITH_DEBUG_LOG)
+    debugLog.loop();
   #endif
 
   #if defined(WITH_WIFI)
     // Check WiFi status periodically (every 5 seconds, half of server ping interval)
     if (millis() - last_wifi_check > 5000) {
       last_wifi_check = millis();
+
+      #if defined(WITH_DEBUG_LOG)
+        // Log WiFi status changes
+        bool currentWiFiConnected = (WiFi.status() == WL_CONNECTED);
+        if (lastWiFiConnected && !currentWiFiConnected) {
+          debugLog.logWiFiDisconnected(WiFi.status());
+        } else if (!lastWiFiConnected && currentWiFiConnected) {
+          debugLog.logWiFiConnected();
+        }
+        lastWiFiConnected = currentWiFiConnected;
+      #endif
+
       if (WiFi.status() != WL_CONNECTED) {
         #if defined(WITH_SERIAL)
           printTimestamp();
@@ -603,6 +626,18 @@ void HomeControl::loop() {
   bool is_disconnected = !client.connected();
   bool is_expired = is_disconnected ? false : connectionExpired();
   bool need_reconnect = is_disconnected || is_expired;
+
+  #if defined(WITH_DEBUG_LOG)
+    // Log server connection status changes
+    if (need_reconnect && lastServerConnected) {
+      if (is_expired) {
+        debugLog.logServerTimeout();
+      } else {
+        debugLog.logServerDisconnected();
+      }
+      lastServerConnected = false;
+    }
+  #endif
 
   if (need_reconnect) {
     // Only print debug message once per reconnection cycle (using member variable)
@@ -814,150 +849,6 @@ void HomeControl::availableMemory() {
 
     return min(delay_ms, max_delay);
   }
-
-  #if defined(WITH_OTA)
-    void HomeControl::setupOTA() {
-      // Set hostname for mDNS (used by ArduinoOTA)
-      char hostname[32];
-      snprintf(hostname, sizeof(hostname), "homecontrol-%02X%02X", mac[4], mac[5]);
-      ArduinoOTA.setHostname(hostname);
-
-      // Optional: Set password for OTA uploads
-      // ArduinoOTA.setPassword("admin");
-
-      ArduinoOTA.onStart([]() {
-        String type = (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
-        #if defined(WITH_SERIAL)
-          Serial.println();
-          Serial.print(F("[OTA] Start updating "));
-          Serial.println(type);
-        #endif
-      });
-
-      ArduinoOTA.onEnd([]() {
-        #if defined(WITH_SERIAL)
-          Serial.println(F("\n[OTA] Update complete! Rebooting..."));
-        #endif
-      });
-
-      ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-        #if defined(WITH_SERIAL)
-          static int lastPercent = -1;
-          int percent = (progress / (total / 100));
-          if (percent != lastPercent && percent % 10 == 0) {
-            Serial.print(F("[OTA] Progress: "));
-            Serial.print(percent);
-            Serial.println(F("%"));
-            lastPercent = percent;
-          }
-        #endif
-      });
-
-      ArduinoOTA.onError([](ota_error_t error) {
-        #if defined(WITH_SERIAL)
-          Serial.print(F("[OTA] Error: "));
-          switch (error) {
-            case OTA_AUTH_ERROR:    Serial.println(F("Auth Failed")); break;
-            case OTA_BEGIN_ERROR:   Serial.println(F("Begin Failed")); break;
-            case OTA_CONNECT_ERROR: Serial.println(F("Connect Failed")); break;
-            case OTA_RECEIVE_ERROR: Serial.println(F("Receive Failed")); break;
-            case OTA_END_ERROR:     Serial.println(F("End Failed")); break;
-            default:                Serial.println(F("Unknown")); break;
-          }
-        #endif
-      });
-
-      ArduinoOTA.begin();
-
-      #if defined(WITH_SERIAL)
-        printTimestamp();
-        Serial.print(F("[OTA] ArduinoOTA ready. Hostname: "));
-        Serial.println(hostname);
-        Serial.print(F("[OTA] IP: "));
-        Serial.print(WiFi.localIP());
-        #if defined(ESP8266)
-          Serial.println(F(":8266"));
-        #elif defined(ESP32)
-          Serial.println(F(":3232"));
-        #endif
-      #endif
-    }
-
-    void HomeControl::performHTTPUpdate(const char* url) {
-      #if defined(WITH_SERIAL)
-        printTimestamp();
-        Serial.println(F("[OTA] Starting HTTP update..."));
-        Serial.print(F("[OTA] URL: "));
-        Serial.println(url);
-        Serial.print(F("[OTA] Current version: "));
-        Serial.println(VERSION);
-      #endif
-
-      // Disconnect TCP client before update
-      client.stop();
-
-      WiFiClient updateClient;
-
-      #if defined(ESP8266)
-        ESPhttpUpdate.rebootOnUpdate(true);
-        ESPhttpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-
-        t_httpUpdate_return ret = ESPhttpUpdate.update(updateClient, url);
-
-        switch (ret) {
-          case HTTP_UPDATE_FAILED:
-            #if defined(WITH_SERIAL)
-              printTimestamp();
-              Serial.print(F("[OTA] HTTP Update failed: "));
-              Serial.print(ESPhttpUpdate.getLastErrorString());
-              Serial.print(F(" ("));
-              Serial.print(ESPhttpUpdate.getLastError());
-              Serial.println(F(")"));
-            #endif
-            break;
-          case HTTP_UPDATE_NO_UPDATES:
-            #if defined(WITH_SERIAL)
-              printTimestamp();
-              Serial.println(F("[OTA] No updates available"));
-            #endif
-            break;
-          case HTTP_UPDATE_OK:
-            #if defined(WITH_SERIAL)
-              printTimestamp();
-              Serial.println(F("[OTA] Update successful! Rebooting..."));
-            #endif
-            break;
-        }
-
-      #elif defined(ESP32)
-        httpUpdate.rebootOnUpdate(true);
-
-        t_httpUpdate_return ret = httpUpdate.update(updateClient, url);
-
-        switch (ret) {
-          case HTTP_UPDATE_FAILED:
-            #if defined(WITH_SERIAL)
-              printTimestamp();
-              Serial.print(F("[OTA] HTTP Update failed: "));
-              Serial.println(httpUpdate.getLastErrorString());
-            #endif
-            break;
-          case HTTP_UPDATE_NO_UPDATES:
-            #if defined(WITH_SERIAL)
-              printTimestamp();
-              Serial.println(F("[OTA] No updates available"));
-            #endif
-            break;
-          case HTTP_UPDATE_OK:
-            #if defined(WITH_SERIAL)
-              printTimestamp();
-              Serial.println(F("[OTA] Update successful! Rebooting..."));
-            #endif
-            break;
-        }
-      #endif
-    }
-  #endif
 
 #endif
 

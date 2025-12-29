@@ -6,7 +6,7 @@
 class Device {
   public:
     Device();
-    ~Device();
+    virtual ~Device();
     bool report;
     bool value_initialized;
     uint32_t device_id;
@@ -19,7 +19,7 @@ class Device {
     #if defined(WITH_SERIAL)
       virtual void print() = 0;
     #endif
-    
+
   protected:
     uint8_t pin;
     uint8_t apin;

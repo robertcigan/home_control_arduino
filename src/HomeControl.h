@@ -11,7 +11,8 @@
   #define WITH_WIFI
   #define WITH_SERIAL
   #define WITH_SERIAL_CONFIG
-  #define WITH_OTA
+  #define WITH_OTA              // HTTP OTA (web page + server-triggered)
+  #define WITH_DEBUG_LOG
   //#define WITH_FILE_CONFIG
 #endif
 
@@ -21,6 +22,7 @@
   #define WITH_SERIAL_CONFIG
   #define WITH_LED
   #define WITH_OTA
+  #define WITH_DEBUG_LOG
 #endif
 
 #if defined(ARDUINO_NodeMCU_32S)
@@ -28,6 +30,7 @@
   #define WITH_SERIAL
   #define WITH_SERIAL_CONFIG
   #define WITH_OTA
+  #define WITH_DEBUG_LOG
 #endif
 
 #if defined(ARDUINO_LOLIN_C3_MINI)
@@ -35,6 +38,7 @@
   #define WITH_SERIAL
   #define WITH_SERIAL_CONFIG
   #define WITH_OTA
+  #define WITH_DEBUG_LOG
 #endif
 
 #if defined(WITH_SERIAL)
@@ -48,17 +52,9 @@
   #include <Ethernet.h>
 #elif defined(ESP8266)
   #include <ESP8266WiFi.h>
-  #if defined(WITH_OTA)
-    #include <ArduinoOTA.h>
-    #include <ESP8266httpUpdate.h>
-  #endif
 #elif defined(ESP32)
   #include "esp_wifi.h"
   #include <WiFi.h>
-  #if defined(WITH_OTA)
-    #include <ArduinoOTA.h>
-    #include <HTTPUpdate.h>
-  #endif
 #endif
 #include <SimpleTimer.h>
 #include <EEPROM.h>
@@ -76,11 +72,20 @@
 #include "DevicePWM.h"
 #include "DeviceCurtain.h"
 
+#if defined(WITH_DEBUG_LOG)
+  #include "DebugLog.h"
+#endif
+
 #define MAX_DEVICES                     40
 #define INPUT_BUFFER_SIZE               500
 #define SERIAL_INPUT_BUFFER_SIZE        50
 #define CONNECTION_TIMEOUT              25*1000L
-#define VERSION                         11
+#define VERSION                         10
+
+#if defined(WITH_OTA)
+  // Secrets (passwords) - not committed to git
+  #include "secrets.h"
+#endif
 
 #define EEPROM_INITIALIZED_VALUE        255
 #define EEPROM_CONFIG_SET_OFFSET        0
@@ -133,9 +138,10 @@ class HomeControl {
       float getRSSI();
       void printWiFiStatus();
       uint32_t getReconnectDelay();
-      #if defined(WITH_OTA)
-        void setupOTA();
-        void performHTTPUpdate(const char* url);
+      #if defined(WITH_DEBUG_LOG)
+        DebugLog debugLog;
+        bool lastWiFiConnected;
+        bool lastServerConnected;
       #endif
     #endif
     uint32_t last_connection_attempt;  // Used for all platforms (WiFi and Ethernet)
