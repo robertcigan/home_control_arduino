@@ -35,6 +35,7 @@ HomeControl::HomeControl() {
 
   // Connection timing (used for all platforms)
   this->last_connection_attempt = 0;
+  this->last_successful_connect = 0;
 
   // Debug timing variables
   this->last_debug_message = 0;
@@ -406,6 +407,7 @@ void HomeControl::connect() {
       #endif
 
       last_request = millis();
+      last_successful_connect = millis();  // Start grace period
       reconnect_attempts = 0;  // Reset backoff counter on success
 
       #if defined(WITH_DEBUG_LOG)
@@ -631,8 +633,10 @@ void HomeControl::loop() {
   #endif
 
   // Check both client connection and timeout
-  // Optimization: only check timeout if connected (no point checking if already disconnected)
-  bool is_disconnected = !client.connected();
+  // Grace period: don't check connection for 3 seconds after successful connect
+  // This prevents false disconnection detection on ESP8266 right after connecting
+  bool in_grace_period = (millis() - last_successful_connect) < 3000;
+  bool is_disconnected = in_grace_period ? false : !client.connected();
   bool is_expired = is_disconnected ? false : connectionExpired();
   bool need_reconnect = is_disconnected || is_expired;
 

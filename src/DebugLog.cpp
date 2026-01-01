@@ -384,53 +384,59 @@ void DebugLog::setupWebServer() {
 }
 
 void DebugLog::handleDebugPage() {
-  String html = F("<!DOCTYPE html><html><head>");
-  html += F("<meta charset='UTF-8'>");
-  html += F("<meta name='viewport' content='width=device-width, initial-scale=1'>");
-  html += F("<title>Debug Log</title>");
-  html += F("<style>");
-  html += F("body{font-family:monospace;background:#1a1a2e;color:#eee;margin:20px;font-size:13px;}");
-  html += F("h1{color:#0f4c75;}");
-  html += F(".btn{background:#0f4c75;color:#fff;padding:10px 20px;text-decoration:none;margin-right:10px;border-radius:3px;display:inline-block;margin-bottom:5px;}");
-  html += F(".btn:hover{background:#1b6ca8;}");
-  html += F(".info{background:#16213e;padding:10px;margin-bottom:15px;border-radius:5px;}");
-  html += F("table{width:100%;border-collapse:collapse;background:#16213e;border-radius:5px;overflow:hidden;}");
-  html += F("th{background:#0f4c75;padding:8px 10px;text-align:left;position:sticky;top:0;}");
-  html += F("td{padding:4px 10px;border-bottom:1px solid #1a1a2e;white-space:nowrap;}");
-  html += F("tr:hover{background:#1f2b4d;}");
-  html += F(".ok{color:#2ecc71;}.err{color:#e74c3c;}");
-  html += F(".log-wrap{max-height:70vh;overflow:auto;border-radius:5px;}");
-  html += F("td:last-child{white-space:normal;word-break:break-word;}");
-  html += F("</style></head><body>");
+  // Use chunked transfer to avoid memory fragmentation
+  _server->setContentLength(CONTENT_LENGTH_UNKNOWN);
+  _server->send(200, "text/html", "");
 
-  html += F("<h1>ESP Debug Log</h1>");
+  // Send header
+  _server->sendContent(F("<!DOCTYPE html><html><head>"));
+  _server->sendContent(F("<meta charset='UTF-8'>"));
+  _server->sendContent(F("<meta name='viewport' content='width=device-width, initial-scale=1'>"));
+  _server->sendContent(F("<title>Debug Log</title>"));
+  _server->sendContent(F("<style>"));
+  _server->sendContent(F("body{font-family:monospace;background:#1a1a2e;color:#eee;margin:20px;font-size:13px;}"));
+  _server->sendContent(F("h1{color:#0f4c75;}"));
+  _server->sendContent(F(".btn{background:#0f4c75;color:#fff;padding:10px 20px;text-decoration:none;margin-right:10px;border-radius:3px;display:inline-block;margin-bottom:5px;}"));
+  _server->sendContent(F(".btn:hover{background:#1b6ca8;}"));
+  _server->sendContent(F(".info{background:#16213e;padding:10px;margin-bottom:15px;border-radius:5px;}"));
+  _server->sendContent(F("table{width:100%;border-collapse:collapse;background:#16213e;border-radius:5px;overflow:hidden;}"));
+  _server->sendContent(F("th{background:#0f4c75;padding:8px 10px;text-align:left;position:sticky;top:0;}"));
+  _server->sendContent(F("td{padding:4px 10px;border-bottom:1px solid #1a1a2e;white-space:nowrap;}"));
+  _server->sendContent(F("tr:hover{background:#1f2b4d;}"));
+  _server->sendContent(F(".ok{color:#2ecc71;}.err{color:#e74c3c;}"));
+  _server->sendContent(F(".log-wrap{max-height:70vh;overflow:auto;border-radius:5px;}"));
+  _server->sendContent(F("td:last-child{white-space:normal;word-break:break-word;}"));
+  _server->sendContent(F("</style></head><body>"));
 
-  // Current status
-  html += F("<div class='info'>");
-  html += F("<strong>Status:</strong> WiFi: ");
-  html += WiFi.status() == WL_CONNECTED ? F("<span class='ok'>Connected</span>") : F("<span class='err'>Disconnected</span>");
-  html += F(" | Server: ");
-  html += _serverConnected ? F("<span class='ok'>Connected</span>") : F("<span class='err'>Disconnected</span>");
-  html += F(" | Signal: ");
-  html += String(calculateRSSI(), 0);
-  html += F("% | Uptime: ");
-  html += String(millis() / 1000);
-  html += F("s | Log: ");
-  html += String(getLogSize());
-  html += F("B</div>");
+  _server->sendContent(F("<h1>ESP Debug Log</h1>"));
+
+  // Current status - build small chunk
+  String status = F("<div class='info'><strong>Status:</strong> WiFi: ");
+  status += WiFi.status() == WL_CONNECTED ? F("<span class='ok'>Connected</span>") : F("<span class='err'>Disconnected</span>");
+  status += F(" | Server: ");
+  status += _serverConnected ? F("<span class='ok'>Connected</span>") : F("<span class='err'>Disconnected</span>");
+  status += F(" | Signal: ");
+  status += String(calculateRSSI(), 0);
+  status += F("% | Uptime: ");
+  status += String(millis() / 1000);
+  status += F("s | Log: ");
+  status += String(getLogSize());
+  status += F("B</div>");
+  _server->sendContent(status);
 
   // Buttons
-  html += F("<p><a class='btn' href='/debug'>&#x21bb; Refresh</a>");
-  html += F("<a class='btn' href='/debug/clear'>&#x1F5D1; Clear</a>");
-  html += F("<a class='btn' href='/debug/status'>{ } JSON</a>");
-  html += F("<a class='btn' href='/update'>&#x1F4E6; Update</a>");
-  html += F("<a class='btn' href='/config'>&#x2699; Config</a></p>");
+  _server->sendContent(F("<p><a class='btn' href='/debug'>&#x21bb; Refresh</a>"));
+  _server->sendContent(F("<a class='btn' href='/debug/clear'>&#x1F5D1; Clear</a>"));
+  _server->sendContent(F("<a class='btn' href='/debug/status'>{ } JSON</a>"));
+  _server->sendContent(F("<a class='btn' href='/update'>&#x1F4E6; Update</a>"));
+  _server->sendContent(F("<a class='btn' href='/config'>&#x2699; Config</a></p>"));
 
-  // Log table
-  html += F("<div class='log-wrap'><table><thead><tr>");
-  html += F("<th>Time</th><th>Signal</th><th>WiFi</th><th>TCP</th><th>Event</th>");
-  html += F("</tr></thead><tbody>");
+  // Log table header
+  _server->sendContent(F("<div class='log-wrap'><table><thead><tr>"));
+  _server->sendContent(F("<th>Time</th><th>Signal</th><th>WiFi</th><th>TCP</th><th>Event</th>"));
+  _server->sendContent(F("</tr></thead><tbody>"));
 
+  // Read and send log file line by line
   File file = LittleFS.open(DEBUG_LOG_FILE, "r");
   if (file) {
     String line = "";
@@ -441,7 +447,7 @@ void DebugLog::handleDebugPage() {
 
         // Parse line: "2024-12-29 10:30:00 | 75% | WiFi:OK | TCP:OK | Event text"
         if (line.length() > 20) {
-          html += F("<tr>");
+          String row = F("<tr>");
 
           int col = 0;
           int lastPipe = -1;
@@ -451,22 +457,22 @@ void DebugLog::handleDebugPage() {
               String part = line.substring(lastPipe + 1, i);
               part.trim();
 
-              html += F("<td>");
+              row += F("<td>");
               if (col == 2 || col == 3) {
                 // WiFi/TCP status - color code
                 if (part.indexOf("OK") >= 0) {
-                  html += F("<span class='ok'>");
-                  html += part;
-                  html += F("</span>");
+                  row += F("<span class='ok'>");
+                  row += part;
+                  row += F("</span>");
                 } else {
-                  html += F("<span class='err'>");
-                  html += part;
-                  html += F("</span>");
+                  row += F("<span class='err'>");
+                  row += part;
+                  row += F("</span>");
                 }
               } else {
-                html += part;
+                row += part;
               }
-              html += F("</td>");
+              row += F("</td>");
 
               lastPipe = i;
               col++;
@@ -474,7 +480,8 @@ void DebugLog::handleDebugPage() {
             }
           }
 
-          html += F("</tr>");
+          row += F("</tr>");
+          _server->sendContent(row);  // Send each row immediately
         }
         line = "";
       } else {
@@ -483,12 +490,11 @@ void DebugLog::handleDebugPage() {
     }
     file.close();
   } else {
-    html += F("<tr><td colspan='5'>(No log file)</td></tr>");
+    _server->sendContent(F("<tr><td colspan='5'>(No log file)</td></tr>"));
   }
 
-  html += F("</tbody></table></div></body></html>");
-
-  _server->send(200, "text/html", html);
+  _server->sendContent(F("</tbody></table></div></body></html>"));
+  _server->sendContent("");  // End chunked transfer
 }
 
 void DebugLog::handleDebugClear() {

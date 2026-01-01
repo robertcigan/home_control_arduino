@@ -145,6 +145,7 @@ class HomeControl {
       #endif
     #endif
     uint32_t last_connection_attempt;  // Used for all platforms (WiFi and Ethernet)
+    uint32_t last_successful_connect;  // Grace period after connection
     bool setupConnection();
     void setNetwork();
     Device *devices[MAX_DEVICES];
